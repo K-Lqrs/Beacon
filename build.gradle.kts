@@ -1,12 +1,19 @@
+import cl.franciscosolis.sonatypecentralupload.SonatypeCentralUploadTask
+import java.io.FileInputStream
+import java.util.*
+
 plugins {
     kotlin("jvm") version "2.0.0"
     `maven-publish`
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("cl.franciscosolis.sonatype-central-upload") version "1.0.2"
 }
 
 version = "1.0.0"
 group = "net.rk4z"
 
+val localProperties = Properties().apply {
+    load(FileInputStream(rootProject.file("local.properties")))
+}
 
 repositories {
     mavenCentral()
@@ -20,45 +27,68 @@ dependencies {
 java {
     withSourcesJar()
     withJavadocJar()
+
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+tasks.withType<JavaCompile> {
+    options.release.set(21)
 }
 
 publishing {
     publications {
         create<MavenPublication>("maven") {
-            artifact(tasks["shadowJar"])
 
+            groupId = project.group.toString()
+            artifactId = project.name
+            version = project.version.toString()
+
+            from(components["java"])
 
             pom {
-                name.set(project.name)
-                description.set("A simple event API for Java/kotlin")
+                name.set("Beacon")
+                description.set("A simple event API for Kotlin")
                 url.set("https://github.com/KT-Ruxy/Beacon")
                 licenses {
                     license {
-                        name.set("MIT License")
-                        url.set("https://github.com/KT-Ruxy/Beacon/blob/main/LICENSE")
-                        distribution.set("repo")
+                        name.set("MIT")
+                        url.set("https://opensource.org/license/mit")
                     }
                 }
                 developers {
                     developer {
                         id.set("ruxy")
                         name.set("Ruxy")
-                        email.set("main@rk4z.net")
                     }
                 }
                 scm {
+                    connection.set("scm:git:git://github.com/KT-Ruxy/Beacon.git")
+                    developerConnection.set("scm:git:ssh://github.com/KT-Ruxy/Beacon.git")
                     url.set("https://github.com/KT-Ruxy/Beacon")
                 }
+                dependencies
             }
         }
     }
-    repositories {
-        mavenLocal()
-    }
 }
 
-tasks {
-    withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
-        archiveClassifier.set("")
-    }
+tasks.named<SonatypeCentralUploadTask>("sonatypeCentralUpload") {
+    dependsOn("jar", "sourcesJar", "javadocJar", "generatePomFileForMavenPublication")
+
+    username = localProperties.getProperty("cu")
+    password = localProperties.getProperty("cp")
+
+    archives = files(
+        tasks.named("jar"),
+        tasks.named("sourcesJar"),
+        tasks.named("javadocJar"),
+    )
+
+    pom = file(
+        tasks.named("generatePomFileForMavenPublication").get().outputs.files.single()
+    )
+
+    signingKey = localProperties.getProperty("signing.key")
+    signingKeyPassphrase = localProperties.getProperty("signing.passphrase")
 }
