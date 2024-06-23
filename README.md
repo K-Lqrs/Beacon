@@ -12,7 +12,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'net.rk4z:beacon:1.0.0'
+    implementation 'net.rk4z:beacon:1.0.3'
 }
 ```
 
@@ -23,7 +23,7 @@ repositories {
 }
 
 dependencies {
-    implementation("net.rk4z:beacon:1.0.0")
+    implementation("net.rk4z:beacon:1.0.3")
 }
 ```
 
@@ -32,7 +32,7 @@ Maven
 <dependency>
     <groupId>net.rk4z</groupId>
     <artifactId>beacon</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.3</version>
 </dependency>
 
 <repositories>
