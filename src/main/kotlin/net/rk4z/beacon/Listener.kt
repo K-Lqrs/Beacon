@@ -29,7 +29,7 @@ interface Listener {
 }
 
 inline fun <reified T: Event> Listener.handler(
-    noinline condition: () -> Boolean,
+    noinline condition: () -> Boolean = { false },
     ignoresCondition: Boolean = false,
     priority: Priority = Priority.NORMAL,
     noinline handler: Handler<T>,

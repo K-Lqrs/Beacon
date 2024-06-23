@@ -2,6 +2,9 @@
 
 package net.rk4z.beacon
 
+/**
+ * All events should extend this class
+ */
 open class Event
 
 /**
