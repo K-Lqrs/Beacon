@@ -9,7 +9,7 @@ plugins {
     id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
-version = "1.1.0"
+version = "1.2.0"
 group = "net.rk4z"
 
 val localProperties = Properties().apply {
