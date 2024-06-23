@@ -12,7 +12,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'net.rk4z:beacon:1.0.3'
+    implementation 'net.rk4z:beacon:[Version]'
 }
 ```
 
@@ -23,21 +23,24 @@ repositories {
 }
 
 dependencies {
-    implementation("net.rk4z:beacon:1.0.3")
+    implementation("net.rk4z:beacon:[Version]")
 }
 ```
 
 Maven
 ```xml
-<dependency>
-    <groupId>net.rk4z</groupId>
-    <artifactId>beacon</artifactId>
-    <version>1.0.3</version>
-</dependency>
-
 <repositories>
     <repository>
         <id>central</id>
         <url>https://repo.maven.apache.org/maven2</url>
     </repository>
 </repositories>
+
+<dependency>
+    <groupId>net.rk4z</groupId>
+    <artifactId>beacon</artifactId>
+    <version>[Version]</version>
+</dependency>
+```
+
+Hint: You can find the latest version of the library on the [MavenCentral](https://central.sonatype.com/artifact/net.rk4z/beacon/versions).
