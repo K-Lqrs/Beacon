@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.reflect.KClass
 import kotlin.reflect.full.createInstance
 import kotlin.reflect.full.primaryConstructor
@@ -37,6 +38,7 @@ object EventBus {
     @JvmStatic
     fun <T: Event> callEvent(event: T): T {
         logger.debug("Calling event: ${event::class.simpleName}")
+        EventLogger.logEvent(event)
         val target = registry[event::class] ?: return event
 
         for (eventHook in target) {
@@ -53,7 +55,12 @@ object EventBus {
             }
 
             runCatching {
-                eventHook.handler(event)
+                val future = asyncExecutor.submit { eventHook.handler(event) }
+                if (eventHook.timeout != null) {
+                    future.get(eventHook.timeout, TimeUnit.MILLISECONDS)
+                } else {
+                    future.get()
+                }
                 logger.debug("Handled event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
             }.onFailure {
                 logger.error("Exception while executing handler: ${it.message}", it)
@@ -93,15 +100,6 @@ object EventBus {
         return event
     }
 
-    private fun registerListener(listener: Listener) {
-        listeners.add(listener)
-    }
-
-
-    fun unregisterListener(listener: Listener) {
-        listeners.remove(listener)
-    }
-
     @JvmStatic
     fun registerAllListeners(packageName: String) {
         val reflections = Reflections(packageName)
@@ -121,6 +119,24 @@ object EventBus {
             } catch (e: Exception) {
                 logger.error("Failed to register listener: ${listenerClass.name}", e)
             }
+        }
+    }
+
+    private fun registerListener(listener: Listener) {
+        listeners.add(listener)
+    }
+
+    fun unregisterListener(listener: Listener) {
+        listeners.remove(listener)
+    }
+
+    fun <T: Event> changeEventHookPriority(eventClass: KClass<T>, eventHook: EventHook<T>, newPriority: Priority) {
+        val handlers = registry[eventClass] ?: return
+        val hookToChange = handlers.find { it === eventHook as EventHook<in Event> }
+        if (hookToChange != null) {
+            hookToChange.priority = newPriority
+            handlers.sortByDescending { it.priority.value }
+            logger.debug("Changed priority for {} to {}", eventClass.simpleName, newPriority)
         }
     }
 

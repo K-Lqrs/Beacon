@@ -6,9 +6,10 @@ plugins {
     kotlin("jvm") version "2.0.0"
     `maven-publish`
     id("cl.franciscosolis.sonatype-central-upload") version "1.0.2"
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
-version = "1.0.0"
+version = "1.1.0"
 group = "net.rk4z"
 
 val localProperties = Properties().apply {
@@ -34,6 +35,11 @@ java {
 
 tasks.withType<JavaCompile> {
     options.release.set(21)
+}
+
+tasks.named<Jar>("jar") {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    archiveClassifier.set("")
 }
 
 publishing {

@@ -8,9 +8,10 @@ class EventHook<T : Event> (
     val handlerClass: Listener,
     val handler: Handler<T>,
     val ignoresCondition: Boolean,
-    val priority: Priority = Priority.NORMAL,
-    val condition: (() -> Boolean)? = null
-    )
+    var priority: Priority = Priority.NORMAL,
+    val condition: (() -> Boolean)? = null,
+    val timeout: Long? = null
+)
 
 interface Listener {
     fun handleEvents(): Boolean = parent()?.handleEvents() ?: true
@@ -28,12 +29,13 @@ interface Listener {
 }
 
 inline fun <reified T: Event> Listener.handler(
+    noinline condition: () -> Boolean,
     ignoresCondition: Boolean = false,
     priority: Priority = Priority.NORMAL,
     noinline handler: Handler<T>,
 ) {
     if (this in EventBus.listeners) {
-        EventBus.registerEventHook(T::class, EventHook(this, handler, ignoresCondition, priority))
+        EventBus.registerEventHook(T::class, EventHook(this, handler, ignoresCondition, priority, condition))
     } else {
         throw IllegalStateException("This listener is not registered: ${this::class.simpleName}")
     }
