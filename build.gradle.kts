@@ -9,7 +9,7 @@ plugins {
     id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
-version = "1.2.2"
+version = "1.2.4"
 group = "net.rk4z"
 
 val localProperties = Properties().apply {
@@ -80,7 +80,7 @@ publishing {
 }
 
 tasks.named<SonatypeCentralUploadTask>("sonatypeCentralUpload") {
-    dependsOn("jar", "sourcesJar", "javadocJar", "generatePomFileForMavenPublication")
+    dependsOn("clean", "jar", "sourcesJar", "javadocJar", "generatePomFileForMavenPublication")
 
     username = localProperties.getProperty("cu")
     password = localProperties.getProperty("cp")

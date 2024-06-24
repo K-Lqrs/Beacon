@@ -142,7 +142,7 @@ object EventBus {
     @JvmStatic
     fun registerAllListeners(packageName: String) {
         val reflections = Reflections(packageName)
-        val listenerClasses = reflections.getSubTypesOf(Listener::class.java)
+        val listenerClasses = reflections.getSubTypesOf(ListenerBase::class.java)
 
         listenerClasses.forEach { listenerClass ->
             try {
@@ -153,7 +153,7 @@ object EventBus {
                 } else {
                     xClass.objectInstance ?: xClass.createInstance()
                 }
-                registerListener(instance as Listener)
+                registerListener(instance as ListenerBase)
                 logger.info("Registered listener: ${xClass.simpleName}")
             } catch (e: Exception) {
                 logger.error("Failed to register listener: ${listenerClass.name}", e)
