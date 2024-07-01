@@ -2,8 +2,6 @@
 
 package net.rk4z.beacon
 
-import net.rk4z.beacon.common.ListenerBase
-
 /**
  * A type alias for a function that takes an event of type T and returns Unit.
  */
@@ -31,13 +29,13 @@ class EventHook<T : Event> (
  * This interface represents a listener, which is an object that can handle events.
  * A listener can have a parent and children, and it can handle events if its parent can.
  */
-interface Listener : ListenerBase {
+interface Listener {
     /**
      * Returns whether this listener can handle events.
      * If this listener has a parent, it returns whether the parent can handle events.
      * Otherwise, it returns true.
      */
-    override fun handleEvents(): Boolean = parent()?.handleEvents() ?: true
+    fun handleEvents(): Boolean = parent()?.handleEvents() ?: true
 
     /**
      * Returns the parent of this listener, or null if it has no parent.
@@ -53,7 +51,7 @@ interface Listener : ListenerBase {
     /**
      * Unregisters this listener and all its children.
      */
-    override fun unregister() {
+    fun unregister() {
         for (child in children()) {
             child.unregister()
         }

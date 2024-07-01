@@ -2,7 +2,6 @@
 
 package net.rk4z.beacon
 
-import net.rk4z.beacon.common.ListenerBase
 import org.reflections.Reflections
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -26,7 +25,10 @@ object EventBus {
     private val logger: Logger = LoggerFactory.getLogger(EventBus::class.java)
     // List of registered listeners
     @JvmField
-    val listeners: MutableList<ListenerBase> = mutableListOf()
+    val listeners: MutableList<Listener> = mutableListOf()
+    // List of registered Java listeners
+    @JvmField
+    val javaListeners: MutableList<net.rk4z.beacon.javaExtension.Listener> = mutableListOf()
 
     /**
      * Registers an event hook for a specific event class.
@@ -142,9 +144,10 @@ object EventBus {
     @JvmStatic
     fun registerAllListeners(packageName: String) {
         val reflections = Reflections(packageName)
-        val listenerClasses = reflections.getSubTypesOf(ListenerBase::class.java)
+        val kotlinListenerClasses = reflections.getSubTypesOf(Listener::class.java)
+        val javaListenerClasses = reflections.getSubTypesOf(net.rk4z.beacon.javaExtension.Listener::class.java)
 
-        listenerClasses.forEach { listenerClass ->
+        kotlinListenerClasses.forEach { listenerClass ->
             try {
                 val xClass = listenerClass.kotlin
                 val primaryConstructor = xClass.primaryConstructor
@@ -153,10 +156,20 @@ object EventBus {
                 } else {
                     xClass.objectInstance ?: xClass.createInstance()
                 }
-                registerListener(instance as ListenerBase)
-                logger.info("Registered listener: ${xClass.simpleName}")
+                registerListener(instance as Listener)
+                logger.info("Registered Kotlin listener: ${xClass.simpleName}")
             } catch (e: Exception) {
-                logger.error("Failed to register listener: ${listenerClass.name}", e)
+                logger.error("Failed to register Kotlin listener: ${listenerClass.name}", e)
+            }
+        }
+
+        javaListenerClasses.forEach { listenerClass ->
+            try {
+                val instance = listenerClass.getDeclaredConstructor().newInstance()
+                registerJavaListener(instance as net.rk4z.beacon.javaExtension.Listener)
+                logger.info("Registered Java listener: ${listenerClass.simpleName}")
+            } catch (e: Exception) {
+                logger.error("Failed to register Java listener: ${listenerClass.name}", e)
             }
         }
     }
@@ -166,8 +179,17 @@ object EventBus {
      * @param listener The listener to register.
      */
     @JvmStatic
-    fun registerListener(listener: ListenerBase) {
+    fun registerListener(listener: Listener) {
         listeners.add(listener)
+    }
+
+    /**
+     * Registers a Java listener.
+     * @param listener The Java listener to register.
+     */
+    @JvmStatic
+    fun registerJavaListener(listener: net.rk4z.beacon.javaExtension.Listener) {
+        javaListeners.add(listener)
     }
 
     /**
@@ -175,8 +197,17 @@ object EventBus {
      * @param listener The listener to unregister.
      */
     @JvmStatic
-    fun unregisterListener(listener: ListenerBase) {
+    fun unregisterListener(listener: Listener) {
         listeners.remove(listener)
+    }
+
+    /**
+     * Unregisters a Java listener.
+     * @param listener The Java listener to unregister.
+     */
+    @JvmStatic
+    fun unregisterJavaListener(listener: net.rk4z.beacon.javaExtension.Listener) {
+        javaListeners.remove(listener)
     }
 
     /**

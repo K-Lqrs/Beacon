@@ -1,6 +1,5 @@
 package net.rk4z.beacon.javaExtension;
 
-import net.rk4z.beacon.common.ListenerBase;
 
 import java.util.List;
 
@@ -8,7 +7,7 @@ import java.util.List;
  * This interface represents a listener in Java, which is an object that can handle events.
  * A listener can have a parent and children, and it can handle events if its parent can.
  */
-public interface Listener extends ListenerBase {
+public interface Listener {
 
     /**
      * Returns whether this listener can handle events.
@@ -16,7 +15,6 @@ public interface Listener extends ListenerBase {
      * Otherwise, it returns true.
      * @return A boolean indicating whether this listener can handle events.
      */
-    @Override
     default boolean handleEvents() {
         Listener parent = parent();
         return parent == null || parent.handleEvents();
@@ -42,7 +40,6 @@ public interface Listener extends ListenerBase {
     /**
      * Unregisters this listener and all its children.
      */
-    @Override
     default void unregister() {
         for (Listener child : children()) {
             child.unregister();
