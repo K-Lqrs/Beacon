@@ -36,7 +36,7 @@ public class ListenerUtil {
             EventBus.registerEventHook(
                     (Class<T>) Event.class,
                     new EventHook<>(
-                            (net.rk4z.beacon.Listener) listener,
+                            listener,
                             (Function1<? super T, Unit>) handler,
                             ignoresCondition,
                             priority,

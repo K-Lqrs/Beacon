@@ -1,40 +1,66 @@
-@file:Suppress("unused", "MemberVisibilityCanBePrivate")
-
 package net.rk4z.beacon
 
 /**
- * This is the base class for all events in the system.
- * Any new event type should extend this class.
+ * This class represents a generic event.
  */
 open class Event
 
 /**
- * This class represents an event that can be cancelled.
- * @property isCancelled A boolean property that indicates whether the event is cancelled or not.
+ * This class represents a cancellable event, which is a type of event that can be cancelled.
+ * @property isCancelled A boolean that indicates whether this event is cancelled.
  */
 open class CancellableEvent : Event() {
-    /**
-     * A boolean property that indicates whether the event is cancelled or not.
-     * It is private to set, but publicly readable.
-     */
     var isCancelled: Boolean = false
         private set
 
     /**
-     * This function allows canceling or uncancel the event.
-     * @param cancel A boolean value indicating whether to cancel the event or not.
+     * Sets the cancelled status of this event.
+     * @param v The new cancelled status of this event.
      */
-    fun setCancelled(cancel: Boolean) {
-        isCancelled = cancel
+    fun setCansel(v: Boolean) {
+        isCancelled = v
+    }
+}
+
+/**
+ * This class represents a delayable event, which is a type of event that can be delayed.
+ * @property delay The delay of this event, in milliseconds.
+ */
+open class DelayableEvent : Event() {
+    var delay: Long = 0
+        private set
+
+    /**
+     * Sets the delay of this event.
+     * @param v The new delay of this event, in milliseconds.
+     */
+    fun setDelay(v: Long) {
+        delay = v
+    }
+}
+
+/**
+ * This class represents a loopable event, which is a type of event that can be looped.
+ * @property roop The number of loops for this event.
+ */
+open class RoopableEvent : Event() {
+    var roop: Long = 0
+        private set
+
+    /**
+     * Sets the number of loops for this event.
+     * @param v The new number of loops for this event.
+     */
+    fun setRoop(v: Long) {
+        roop = v
     }
 }
 
 /**
  * This enum represents the priority of an event.
- * It has five levels: LOWEST, LOW, NORMAL, HIGH, HIGHEST.
- * Each level is associated with a numerical value, from 0 (LOWEST) to 4 (HIGHEST).
+ * @property v The value of the priority.
  */
-enum class Priority(val value: Int) {
+enum class Priority(val v: Int) {
     LOWEST(0),
     LOW(1),
     NORMAL(2),

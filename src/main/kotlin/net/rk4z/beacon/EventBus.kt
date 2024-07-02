@@ -1,79 +1,92 @@
-@file:Suppress("UNCHECKED_CAST", "unused")
-
 package net.rk4z.beacon
 
 import org.reflections.Reflections
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.slf4j.Logger
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import kotlin.reflect.full.companionObject
+import kotlin.reflect.full.companionObjectInstance
 import kotlin.reflect.full.createInstance
-import kotlin.reflect.full.primaryConstructor
 
-/**
- * Singleton object that manages the event system.
- * It provides methods to register and unregister event hooks, call events, and manage listeners.
- */
+@Suppress("unused", "UNCHECKED_CAST", "MemberVisibilityCanBePrivate", "LoggingSimilarMessage")
 object EventBus {
-    // Registry of event hooks, mapped by event class
-    private val registry: MutableMap<Class<out Event>, CopyOnWriteArrayList<EventHook<in Event>>> = mutableMapOf()
-    // Executor service for asynchronous event handling
-    private lateinit var asyncExecutor: ExecutorService
-    // Logger for this class
     private val logger: Logger = LoggerFactory.getLogger(EventBus::class.java)
-    // List of registered listeners
+    private val registry: MutableMap<Class<out Event>, CopyOnWriteArrayList<EventHook<in Event>>> = mutableMapOf()
+    private lateinit var asyncExecutor: ExecutorService
     @JvmField
     val listeners: MutableList<Listener> = mutableListOf()
-    // List of registered Java listeners
-    @JvmField
-    val javaListeners: MutableList<net.rk4z.beacon.javaExtension.Listener> = mutableListOf()
 
-    /**
-     * Registers an event hook for a specific event class.
-     * If the event hook is not already registered, it is added to the list of handlers for that event class.
-     * The handlers are then sorted by priority.
-     * @param eventClass The class of the event.
-     * @param eventHook The event hook to register.
-     */
     @JvmStatic
-    fun <T: Event> registerEventHook(eventClass: Class<T>, eventHook: EventHook<T>) {
+    fun <T : Event> registerEventHook(eventClass: Class<T>, eventHook: EventHook<T>) {
         val handlers = registry.getOrPut(eventClass) { CopyOnWriteArrayList() }
 
         val hook = eventHook as EventHook<in Event>
 
         if (!handlers.contains(hook)) {
             handlers.add(hook)
-            handlers.sortByDescending { it.priority.value }
-            logger.info("Registered event hook for ${eventClass.simpleName} with priority ${hook.priority}")
+            handlers.sortBy { it.priority.v }
+            logger.info("Registered event hook for ${eventClass.simpleName} with priority ${eventHook.priority}")
         }
     }
 
-    /**
-     * Unregisters an event hook for a specific event class.
-     * @param eventClass The class of the event.
-     * @param eventHook The event hook to unregister.
-     */
     @JvmStatic
-    fun <T: Event> unregisterEventHook(eventClass: Class<T>, eventHook: EventHook<T>) {
+    fun <T : Event> unregisterEventHook(eventClass: Class<T>, eventHook: EventHook<T>) {
         registry[eventClass]?.remove(eventHook as EventHook<in Event>)
     }
 
-    /**
-     * Calls an event and handles it with all registered event hooks for its class.
-     * If the event is cancellable and has been cancelled, no further event hooks are called.
-     * @param event The event to call.
-     * @return The event after it has been handled.
-     */
     @JvmStatic
-    fun <T: Event> callEvent(event: T): T {
+    private fun registerAllListeners(packageName: String?) {
+        if (packageName == null) {
+            logger.warn("Package name is null, cannot register listeners")
+            return
+        }
+
+        val reflection = Reflections(packageName)
+        val listenerClasses = reflection.getSubTypesOf(Listener::class.java)
+
+        for (listenerClass in listenerClasses) {
+            try {
+                val instance = when {
+                    listenerClass.kotlin.companionObject != null -> {
+                        listenerClass.kotlin.companionObjectInstance ?: listenerClass.kotlin.companionObject?.createInstance()
+                    }
+                    listenerClass.kotlin.isData -> {
+                        listenerClass.kotlin.createInstance()
+                    }
+                    else -> {
+                        listenerClass.getDeclaredConstructor().newInstance()
+                    }
+                }
+                registerListener(instance as Listener)
+            } catch (e: Exception) {
+                logger.error("Failed to register listener: ${listenerClass.name}", e)
+            }
+        }
+    }
+
+    @JvmStatic
+    fun registerListener(listener: Listener) {
+        listeners.add(listener)
+        logger.info("Registered listener: ${listener::class.java.name}")
+    }
+
+    @JvmStatic
+    fun unregisterListener(listener: Listener) {
+        listeners.remove(listener)
+        logger.info("Unregistered listener: ${listener::class.java.name}")
+    }
+
+    @JvmStatic
+    fun <T : Event> post(event: T): T {
         logger.debug("Calling event: ${event::class.simpleName}")
-        EventLogger.logEvent(event)
         val target = registry[event::class.java] ?: return event
 
         for (eventHook in target) {
             if (event is CancellableEvent && event.isCancelled) {
+                logger.debug("Event ${event::class.simpleName} is cancelled")
                 break
             }
 
@@ -85,35 +98,46 @@ object EventBus {
                 continue
             }
 
-            runCatching {
-                val future = asyncExecutor.submit { eventHook.handler(event) }
-                if (eventHook.timeout != null) {
-                    future.get(eventHook.timeout, TimeUnit.MILLISECONDS)
-                } else {
-                    future.get()
+            if (event is DelayableEvent) {
+                logger.debug("Event ${event::class.simpleName} is delayed by ${event.delay} milliseconds")
+                Thread.sleep(event.delay)
+            }
+
+            if (event is RoopableEvent) {
+                for (i in 1..event.roop) {
+                    logger.debug("Handling event: ${event::class.simpleName}, loop $i of ${event.roop}")
+                    runCatching {
+                        eventHook.handler(event)
+                        logger.debug("Handled event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
+                    }.onFailure {
+                        logger.error("Exception while executing handler: ${it.message}", it)
+                    }
                 }
-                logger.debug("Handled event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
-            }.onFailure {
-                logger.error("Exception while executing handler: ${it.message}", it)
+            } else {
+                runCatching {
+                    val future = asyncExecutor.submit { eventHook.handler(event) }
+                    if (eventHook.timeout != null) {
+                        future.get(eventHook.timeout, TimeUnit.MILLISECONDS)
+                    } else {
+                        future.get()
+                    }
+                    logger.debug("Handled event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
+                }.onFailure {
+                    logger.error("Exception while executing handler: ${it.message}", it)
+                }
             }
         }
-
         return event
     }
 
-    /**
-     * Calls an event asynchronously and handles it with all registered event hooks for its class.
-     * If the event is cancellable and has been cancelled, no further event hooks are called.
-     * @param event The event to call.
-     * @return The event after it has been handled.
-     */
     @JvmStatic
-    fun <T: Event> callEventAsync(event: T): T {
+    fun <T : Event> postAsync(event: T): T {
         logger.debug("Calling event asynchronously: ${event::class.simpleName}")
         val target = registry[event::class.java] ?: return event
 
         for (eventHook in target) {
             if (event is CancellableEvent && event.isCancelled) {
+                logger.debug("Event ${event::class.simpleName} is cancelled")
                 break
             }
 
@@ -125,123 +149,47 @@ object EventBus {
                 continue
             }
 
-            asyncExecutor.submit {
-                runCatching {
-                    eventHook.handler(event)
-                    logger.debug("Handled event asynchronously: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
-                }.onFailure {
-                    logger.error("Exception while executing handler asynchronously: ${it.message}", it)
+            if (event is DelayableEvent) {
+                logger.debug("Event ${event::class.simpleName} is delayed by ${event.delay} milliseconds")
+                Thread.sleep(event.delay)
+            }
+
+            if (event is RoopableEvent) {
+                for (i in 1..event.roop) {
+                    logger.debug("Handling event asynchronously: ${event::class.simpleName}, loop $i of ${event.roop}")
+                    asyncExecutor.submit {
+                        runCatching {
+                            eventHook.handler(event)
+                            logger.debug("Handled event asynchronously: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
+                        }.onFailure {
+                            logger.error("Exception while executing handler asynchronously: ${it.message}", it)
+                        }
+                    }
+                }
+            } else {
+                asyncExecutor.submit {
+                    runCatching {
+                        eventHook.handler(event)
+                        logger.debug("Handled event asynchronously: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
+                    }.onFailure {
+                        logger.error("Exception while executing handler asynchronously: ${it.message}", it)
+                    }
                 }
             }
         }
         return event
     }
 
-    /**
-     * Registers all listeners found in a specific package.
-     * @param packageName The name of the package to search for listeners.
-     */
     @JvmStatic
-    fun registerAllListeners(packageName: String) {
-        val reflections = Reflections(packageName)
-        val kotlinListenerClasses = reflections.getSubTypesOf(Listener::class.java)
-        val javaListenerClasses = reflections.getSubTypesOf(net.rk4z.beacon.javaExtension.Listener::class.java)
-
-        kotlinListenerClasses.forEach { listenerClass ->
-            try {
-                val xClass = listenerClass.kotlin
-                val primaryConstructor = xClass.primaryConstructor
-                val instance = if (primaryConstructor != null) {
-                    primaryConstructor.call()
-                } else {
-                    xClass.objectInstance ?: xClass.createInstance()
-                }
-                registerListener(instance as Listener)
-                logger.info("Registered Kotlin listener: ${xClass.simpleName}")
-            } catch (e: Exception) {
-                logger.error("Failed to register Kotlin listener: ${listenerClass.name}", e)
-            }
-        }
-
-        javaListenerClasses.forEach { listenerClass ->
-            try {
-                val instance = listenerClass.getDeclaredConstructor().newInstance()
-                registerJavaListener(instance as net.rk4z.beacon.javaExtension.Listener)
-                logger.info("Registered Java listener: ${listenerClass.simpleName}")
-            } catch (e: Exception) {
-                logger.error("Failed to register Java listener: ${listenerClass.name}", e)
-            }
-        }
-    }
-
-    /**
-     * Registers a listener.
-     * @param listener The listener to register.
-     */
-    @JvmStatic
-    fun registerListener(listener: Listener) {
-        listeners.add(listener)
-    }
-
-    /**
-     * Registers a Java listener.
-     * @param listener The Java listener to register.
-     */
-    @JvmStatic
-    fun registerJavaListener(listener: net.rk4z.beacon.javaExtension.Listener) {
-        javaListeners.add(listener)
-    }
-
-    /**
-     * Unregisters a listener.
-     * @param listener The listener to unregister.
-     */
-    @JvmStatic
-    fun unregisterListener(listener: Listener) {
-        listeners.remove(listener)
-    }
-
-    /**
-     * Unregisters a Java listener.
-     * @param listener The Java listener to unregister.
-     */
-    @JvmStatic
-    fun unregisterJavaListener(listener: net.rk4z.beacon.javaExtension.Listener) {
-        javaListeners.remove(listener)
-    }
-
-    /**
-     * Changes the priority of an event hook for a specific event class.
-     * @param eventClass The class of the event.
-     * @param eventHook The event hook whose priority to change.
-     * @param newPriority The new priority for the event hook.
-     */
-    @JvmStatic
-    fun <T: Event> changeEventHookPriority(eventClass: Class<T>, eventHook: EventHook<T>, newPriority: Priority) {
-        val handlers = registry[eventClass] ?: return
-        val hookToChange = handlers.find { it === eventHook as EventHook<in Event> }
-        if (hookToChange != null) {
-            hookToChange.priority = newPriority
-            handlers.sortByDescending { it.priority.value }
-            logger.debug("Changed priority for {} to {}", eventClass.simpleName, newPriority)
-        }
-    }
-
-    /**
-     * Initializes the EventBus, setting up the executor service for asynchronous event handling.
-     */
-    @JvmStatic
-    fun initialize() {
+    fun initialize(packageName: String?) {
         asyncExecutor = Executors.newCachedThreadPool()
-        logger.info("EventManager initialized")
+        registerAllListeners(packageName)
+        logger.info("EventBus initialized with package: $packageName")
     }
 
-    /**
-     * Shuts down the EventBus, stopping the executor service.
-     */
     @JvmStatic
     fun shutdown() {
         asyncExecutor.shutdown()
-        logger.info("EventManager shutdown")
+        logger.info("EventBus shutdown")
     }
 }
