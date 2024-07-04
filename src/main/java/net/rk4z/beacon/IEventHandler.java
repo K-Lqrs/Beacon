@@ -31,7 +31,7 @@ public interface IEventHandler {
      * Returns the children of this listener.
      * By default, a listener has no children.
      *
-     * @return A list of children of this listener.
+     * @return List of children.
      */
     default List<IEventHandler> children() {
         return List.of();
