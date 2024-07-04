@@ -1,23 +1,19 @@
+@file:Suppress("UNCHECKED_CAST", "unused")
+
 package net.rk4z.beacon
 
-import org.reflections.Reflections
-import org.slf4j.LoggerFactory
 import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import kotlin.reflect.full.companionObject
-import kotlin.reflect.full.companionObjectInstance
-import kotlin.reflect.full.createInstance
 
-@Suppress("unused", "UNCHECKED_CAST", "MemberVisibilityCanBePrivate", "LoggingSimilarMessage")
+@Suppress("LoggingSimilarMessage")
 object EventBus {
     private val logger: Logger = LoggerFactory.getLogger(EventBus::class.java)
     private val registry: MutableMap<Class<out Event>, CopyOnWriteArrayList<EventHook<in Event>>> = mutableMapOf()
-    private lateinit var asyncExecutor: ExecutorService
-    @JvmField
-    val listeners: MutableList<Listener> = mutableListOf()
+    private val asyncExecutor: ExecutorService = Executors.newCachedThreadPool()
 
     @JvmStatic
     fun <T : Event> registerEventHook(eventClass: Class<T>, eventHook: EventHook<T>) {
@@ -35,48 +31,6 @@ object EventBus {
     @JvmStatic
     fun <T : Event> unregisterEventHook(eventClass: Class<T>, eventHook: EventHook<T>) {
         registry[eventClass]?.remove(eventHook as EventHook<in Event>)
-    }
-
-    @JvmStatic
-    private fun registerAllListeners(packageName: String?) {
-        if (packageName == null) {
-            logger.warn("Package name is null, cannot register listeners")
-            return
-        }
-
-        val reflection = Reflections(packageName)
-        val listenerClasses = reflection.getSubTypesOf(Listener::class.java)
-
-        for (listenerClass in listenerClasses) {
-            try {
-                val instance = when {
-                    listenerClass.kotlin.companionObject != null -> {
-                        listenerClass.kotlin.companionObjectInstance ?: listenerClass.kotlin.companionObject?.createInstance()
-                    }
-                    listenerClass.kotlin.isData -> {
-                        listenerClass.kotlin.createInstance()
-                    }
-                    else -> {
-                        listenerClass.getDeclaredConstructor().newInstance()
-                    }
-                }
-                registerListener(instance as Listener)
-            } catch (e: Exception) {
-                logger.error("Failed to register listener: ${listenerClass.name}", e)
-            }
-        }
-    }
-
-    @JvmStatic
-    fun registerListener(listener: Listener) {
-        listeners.add(listener)
-        logger.info("Registered listener: ${listener::class.java.name}")
-    }
-
-    @JvmStatic
-    fun unregisterListener(listener: Listener) {
-        listeners.remove(listener)
-        logger.info("Unregistered listener: ${listener::class.java.name}")
     }
 
     @JvmStatic
@@ -180,16 +134,4 @@ object EventBus {
         return event
     }
 
-    @JvmStatic
-    fun initialize(packageName: String?) {
-        asyncExecutor = Executors.newCachedThreadPool()
-        registerAllListeners(packageName)
-        logger.info("EventBus initialized with package: $packageName")
-    }
-
-    @JvmStatic
-    fun shutdown() {
-        asyncExecutor.shutdown()
-        logger.info("EventBus shutdown")
-    }
 }

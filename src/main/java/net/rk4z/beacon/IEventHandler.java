@@ -1,9 +1,10 @@
 package net.rk4z.beacon;
 
+
 import java.util.List;
 
 @SuppressWarnings("unused")
-public interface Listener {
+public interface IEventHandler {
 
     /**
      * Returns whether this listener can handle events.
@@ -13,7 +14,7 @@ public interface Listener {
      * @return A boolean indicating whether this listener can handle events.
      */
     default boolean handleEvents() {
-        Listener parent = parent();
+        IEventHandler parent = parent();
         return parent == null || parent.handleEvents();
     }
 
@@ -22,7 +23,7 @@ public interface Listener {
      *
      * @return The parent of this listener, or null if it has no parent.
      */
-    default Listener parent() {
+    default IEventHandler parent() {
         return null;
     }
 
@@ -32,7 +33,7 @@ public interface Listener {
      *
      * @return A list of children of this listener.
      */
-    default List<Listener> children() {
+    default List<IEventHandler> children() {
         return List.of();
     }
 
@@ -40,7 +41,7 @@ public interface Listener {
      * Unregisters this listener and all its children.
      */
     default void unregister() {
-        for (Listener child : children()) {
+        for (IEventHandler child : children()) {
             child.unregister();
         }
     }
