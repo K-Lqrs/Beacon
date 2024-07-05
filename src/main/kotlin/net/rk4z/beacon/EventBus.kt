@@ -5,8 +5,8 @@ package net.rk4z.beacon
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
 /**
@@ -18,8 +18,10 @@ import java.util.concurrent.TimeUnit
 @Suppress("LoggingSimilarMessage")
 object EventBus {
     private val logger: Logger = LoggerFactory.getLogger(EventBus::class.java)
+
     // Registry of event hooks, mapped by event class to a thread-safe list of hooks.
     private val registry: MutableMap<Class<out Event>, CopyOnWriteArrayList<EventHook<in Event>>> = mutableMapOf()
+
     // Executor service for handling asynchronous event processing.
     private lateinit var asyncExecutor: ScheduledExecutorService
 
