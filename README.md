@@ -1,5 +1,3 @@
-**Presumably, this API is currently not working properly**
-
 # Beacon
 
 Beacon is a simple, lightweight, and easy-to-use library for creating and calling the event in java and kotlin.
