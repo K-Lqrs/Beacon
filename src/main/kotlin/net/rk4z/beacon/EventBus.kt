@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit
  * to be handled by registered hooks.
  * Supports both synchronous and asynchronous event handling.
  */
-@Suppress("LoggingSimilarMessage")
+@Suppress("LoggingSimilarMessage", "UNCHECKED_CAST")
 object EventBus {
     private val logger: Logger = LoggerFactory.getLogger(EventBus::class.java)
 
