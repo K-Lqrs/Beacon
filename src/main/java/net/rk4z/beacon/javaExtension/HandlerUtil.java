@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2024 Ruxy
+ * Released under the MIT license
+ * https://opensource.org/license/mit
+ */
+
 package net.rk4z.beacon.javaExtension;
 
 import kotlin.Unit;
@@ -5,6 +11,7 @@ import kotlin.jvm.functions.Function0;
 import kotlin.jvm.functions.Function1;
 import net.rk4z.beacon.*;
 import net.rk4z.beacon.EventHook;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Supplier;
 
@@ -26,7 +33,7 @@ public class HandlerUtil {
      * @param handler The function that handles the event.
      */
     public static <T extends Event> void handler(
-            IEventHandler instance,
+            @NotNull IEventHandler instance,
             Supplier<Boolean> condition,
             boolean ignoresCondition,
             Priority priority,

@@ -1,4 +1,8 @@
-@file:Suppress("UNCHECKED_CAST", "unused")
+/*
+ * Copyright (c) 2024 Ruxy
+ * Released under the MIT license
+ * https://opensource.org/license/mit
+ */
 
 package net.rk4z.beacon
 

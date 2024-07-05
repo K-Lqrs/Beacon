@@ -1,15 +1,21 @@
+/*
+ * Copyright (c) 2024 Ruxy
+ * Released under the MIT license
+ * https://opensource.org/license/mit
+ */
+
 package net.rk4z.beacon
 
 /**
  * This class represents a generic event.
  */
-open class Event
+abstract class Event
 
 /**
  * This class represents a cancellable event, which is a type of event that can be cancelled.
  * @property isCancelled A boolean that indicates whether this event is cancelled.
  */
-open class CancellableEvent : Event() {
+abstract class CancellableEvent : Event() {
     var isCancelled: Boolean = false
         private set
 
