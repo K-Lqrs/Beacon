@@ -9,7 +9,7 @@ plugins {
     id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
-version = "1.3.1"
+version = "1.3.2"
 group = "net.rk4z"
 
 val localProperties = Properties().apply {
@@ -54,7 +54,7 @@ publishing {
 
             pom {
                 name.set("Beacon")
-                description.set("A simple event API for Kotlin")
+                description.set("A simple event API for Kotlin/Java")
                 url.set("https://github.com/KT-Ruxy/Beacon")
                 licenses {
                     license {
