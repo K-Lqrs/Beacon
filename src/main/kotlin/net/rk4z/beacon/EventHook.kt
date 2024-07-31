@@ -43,7 +43,7 @@ class EventHook<T : Event>(
  * @throws IllegalStateException if the class containing the event handler is not annotated with [IEventHandler].
  */
 inline fun <reified T : Event> IEventHandler.handler(
-    noinline condition: () -> Boolean = { false },
+    noinline condition: () -> Boolean = { true },
     ignoresCondition: Boolean = false,
     priority: Priority = Priority.NORMAL,
     noinline handler: Handler<T>

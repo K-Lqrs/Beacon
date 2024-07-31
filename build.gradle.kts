@@ -1,4 +1,6 @@
 import cl.franciscosolis.sonatypecentralupload.SonatypeCentralUploadTask
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.io.FileInputStream
 import java.util.*
 
@@ -9,7 +11,7 @@ plugins {
     id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
-version = "1.3.2"
+version = "1.3.5"
 group = "net.rk4z"
 
 val localProperties = Properties().apply {
@@ -29,12 +31,24 @@ java {
     withSourcesJar()
     withJavadocJar()
 
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+kotlin {
+    jvmToolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
+}
+
+tasks.withType<KotlinCompile> {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
 }
 
 tasks.withType<JavaCompile> {
-    options.release.set(21)
+    options.release.set(17)
 }
 
 tasks.named<Jar>("jar") {
@@ -66,6 +80,7 @@ publishing {
                     developer {
                         id.set("ruxy")
                         name.set("Ruxy")
+                        email.set("main@rk4z.net")
                     }
                 }
                 scm {
