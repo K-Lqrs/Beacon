@@ -70,8 +70,8 @@ inline fun <reified T : Event> IEventHandler.handler(
     noinline condition: () -> Boolean = { true },
     ignoresCondition: Boolean = false,
     priority: Priority = Priority.NORMAL,
-    noinline handler: Handler<T>,
-    timeout: Long?
+    timeout: Long? = null,
+    noinline handler: Handler<T>
 ) {
     val clazz = this::class
 
@@ -108,8 +108,8 @@ inline fun <reified T : ReturnableEvent<R>, R> IEventHandler.returnableHandler(
     noinline condition: () -> Boolean = { true },
     ignoresCondition: Boolean = false,
     priority: Priority = Priority.NORMAL,
-    noinline handler: ReturnableHandler<T, R>,
-    timeout: Long?
+    timeout: Long? = null,
+    noinline handler: ReturnableHandler<T, R>
 ) {
     val clazz = this::class
 
