@@ -21,10 +21,11 @@ import java.util.concurrent.TimeUnit
  */
 @Suppress("LoggingSimilarMessage", "UNCHECKED_CAST")
 object EventBus {
-    private val logger: Logger = LoggerFactory.getLogger(EventBus::class.java)
+    private val logger: Logger = LoggerFactory.getLogger(EventBus::class.java.simpleName)
 
     // Registry of event hooks, mapped by event class to a thread-safe list of hooks.
     private val registry: MutableMap<Class<out Event>, CopyOnWriteArrayList<EventHook<in Event>>> = mutableMapOf()
+    private val returnableRegistry: MutableMap<Class<out ReturnableEvent<*>>, CopyOnWriteArrayList<ReturnableEventHook<in ReturnableEvent<*>, *>>> = mutableMapOf()
 
     // Executor service for handling asynchronous event processing.
     private lateinit var asyncExecutor: ScheduledExecutorService
@@ -46,6 +47,19 @@ object EventBus {
             handlers.add(hook)
             handlers.sortBy { it.priority.v }
             logger.info("Registered event hook for ${eventClass.simpleName} with priority ${eventHook.priority}")
+        }
+    }
+
+    @JvmStatic
+    fun <T : ReturnableEvent<R>, R> registerReturnableEventHook(eventClass: Class<T>, eventHook: ReturnableEventHook<T, R>) {
+        val handlers = returnableRegistry.getOrPut(eventClass) { CopyOnWriteArrayList() }
+
+        val hook = eventHook as ReturnableEventHook<in ReturnableEvent<*>, *>
+
+        if (!handlers.contains(hook)) {
+            handlers.add(hook)
+            handlers.sortBy { it.priority.v }
+            logger.info("Registered returnable event hook for ${eventClass.simpleName} with priority ${eventHook.priority}")
         }
     }
 
@@ -452,6 +466,47 @@ object EventBus {
 
         return processedEvents
     }
+
+    /**
+     * Posts an event to be handled synchronously by all registered hooks for the event's class and returns the result.
+     * @param T The type of the event.
+     * @param R The type of the return value.
+     * @param event The event to post.
+     * @return The result of the event after processing.
+     */
+    @JvmStatic
+    fun <T : ReturnableEvent<R>, R> postReturnable(event: T, enableDebugLog: Boolean? = false): R? {
+        if (enableDebugLog == true) {
+            logger.info("Calling returnable event: ${event::class.simpleName}")
+        } else {
+            logger.debug("Calling returnable event: ${event::class.simpleName}")
+        }
+        val target = returnableRegistry[event::class.java] ?: return null
+
+        for (eventHook in target) {
+            if (!eventHook.ignoresCondition && !eventHook.handlerClass.handleEvents()) {
+                continue
+            }
+
+            if (eventHook.condition?.invoke() == false) {
+                continue
+            } else {
+                runCatching {
+                    val result = (eventHook as ReturnableEventHook<T, R>).handler(event)
+                    event.setResult(result)
+                    if (enableDebugLog == true) {
+                        logger.info("Handled returnable event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
+                    } else {
+                        logger.debug("Handled returnable event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
+                    }
+                }.onFailure {
+                    logger.error("Exception while executing handler: ${it.message}", it)
+                }
+            }
+        }
+        return event.getResult()
+    }
+
 
     /**
      * Initializes the EventBus, setting up the asynchronous executor service.

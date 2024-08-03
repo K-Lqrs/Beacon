@@ -1,16 +1,9 @@
-/*
- * Copyright (c) 2024 Ruxy
- * Released under the MIT license
- * https://opensource.org/license/mit
- */
-
 package net.rk4z.beacon.javaExtension;
 
 import kotlin.Unit;
 import kotlin.jvm.functions.Function0;
 import kotlin.jvm.functions.Function1;
 import net.rk4z.beacon.*;
-import net.rk4z.beacon.EventHook;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Supplier;
@@ -72,5 +65,57 @@ public class HandlerUtil {
             Handler<T> handler
     ) {
         handler(instance, () -> false, false, Priority.NORMAL, handler, null);
+    }
+
+    /**
+     * Registers a returnable handler for a specific type of returnable event.
+     * The handler is registered as a returnable event hook in the EventBus.
+     * If the listener is not registered in the EventBus, an exception is thrown.
+     * @param instance The listener that the handler belongs to.
+     * @param condition A supplier that returns a boolean, which is the condition for the event hook.
+     * @param ignoresCondition A boolean that indicates whether the event hook ignores its condition.
+     * @param priority The priority of the event hook.
+     * @param handler The function that handles the returnable event and returns a result.
+     */
+    public static <T extends ReturnableEvent<R>, R> void returnableHandler(
+            @NotNull IEventHandler instance,
+            Supplier<Boolean> condition,
+            boolean ignoresCondition,
+            Priority priority,
+            ReturnableHandler<T, R> handler,
+            Long timeout
+    ) {
+        Class<?> clazz = instance.getClass();
+
+        if (clazz.isAnnotationPresent(EventHandler.class) && IEventHandler.class.isAssignableFrom(clazz)) {
+            EventBus.registerReturnableEventHook(
+                    (Class<T>) (Class<?>) ReturnableEvent.class,
+                    new ReturnableEventHook<>(
+                            instance,
+                            (Function1<? super T, R>) handler,
+                            ignoresCondition,
+                            priority,
+                            (Function0<Boolean>) condition,
+                            timeout
+                    )
+            );
+        } else {
+            throw new IllegalStateException("This listener is not registered: " + instance.getClass().getSimpleName());
+        }
+    }
+
+    /**
+     * Registers a returnable handler for a specific type of returnable event with default parameters.
+     * The handler is registered as a returnable event hook in the EventBus with a condition that always returns false,
+     * does not ignore its condition, and has normal priority.
+     * If the listener is not registered in the EventBus, an exception is thrown.
+     * @param instance The listener that the handler belongs to.
+     * @param handler The function that handles the returnable event and returns a result.
+     */
+    public static <T extends ReturnableEvent<R>, R> void returnableHandler(
+            IEventHandler instance,
+            ReturnableHandler<T, R> handler
+    ) {
+        returnableHandler(instance, () -> false, false, Priority.NORMAL, handler, null);
     }
 }

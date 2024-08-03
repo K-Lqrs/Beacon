@@ -29,6 +29,29 @@ abstract class CancellableEvent : Event() {
 }
 
 /**
+ * This class represents a returnable event.
+ */
+abstract class ReturnableEvent<T> : Event() {
+    private var result: T? = null
+
+    /**
+     * Sets the result of the event.
+     * @param result The result of the event.
+     */
+    fun setResult(result: T) {
+        this.result = result
+    }
+
+    /**
+     * Returns the result of the event.
+     * @return The result of the event.
+     */
+    fun getResult(): T? {
+        return result
+    }
+}
+
+/**
  * This enum represents the priority of an event.
  * @property v The value of the priority.
  */
