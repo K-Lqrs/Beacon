@@ -304,7 +304,7 @@ object EventBus {
                 }
             }
         }
-        return event.getResult()
+        return event.result
     }
 
     /**

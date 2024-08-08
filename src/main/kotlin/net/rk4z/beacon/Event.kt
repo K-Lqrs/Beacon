@@ -5,12 +5,12 @@ package net.rk4z.beacon
 /**
  * Represents a generic event.
  */
-open class Event
+abstract class Event
 
 /**
  * Represents an event that can be cancelled.
  */
-open class CancellableEvent : Event() {
+abstract class CancellableEvent : Event() {
     /**
      * Indicates whether the event is cancelled.
      */
@@ -29,7 +29,7 @@ open class CancellableEvent : Event() {
  * Represents an event that can return a result.
  * @param T The type of the result.
  */
-open class ReturnableEvent<T> : Event() {
+abstract class ReturnableEvent<T> : Event() {
     /**
      * The result of the event.
      */
@@ -42,14 +42,6 @@ open class ReturnableEvent<T> : Event() {
      */
     fun setResult(result: T) {
         this.result = result
-    }
-
-    /**
-     * Gets the result of the event.
-     * @return The result of the event.
-     */
-    fun getResult(): T? {
-        return result
     }
 }
 
