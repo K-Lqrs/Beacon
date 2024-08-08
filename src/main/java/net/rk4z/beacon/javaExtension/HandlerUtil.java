@@ -8,22 +8,20 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Supplier;
 
-/**
- * This class provides utility methods for listeners in Java.
- * It provides methods to register a handler for a specific type of event.
- */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "unused", "RedundantCast"})
 public class HandlerUtil {
 
     /**
-     * Registers a handler for a specific type of event.
-     * The handler is registered as an event hook in the EventBus.
-     * If the listener is not registered in the EventBus, an exception is thrown.
-     * @param instance The listener that the handler belongs to.
-     * @param condition A supplier that returns a boolean, which is the condition for the event hook.
-     * @param ignoresCondition A boolean that indicates whether the event hook ignores its condition.
-     * @param priority The priority of the event hook.
-     * @param handler The function that handles the event.
+     * Registers a handler for events of type T.
+     *
+     * @param <T> the type of the event to be handled
+     * @param instance the event handler instance
+     * @param condition a supplier providing the condition to be checked
+     * @param ignoresCondition whether the condition should be ignored
+     * @param priority the priority of the event handler
+     * @param handler the handler to process the event
+     * @param timeout the timeout for the event handler
+     * @throws IllegalStateException if the listener is not registered
      */
     public static <T extends Event> void handler(
             @NotNull IEventHandler instance,
@@ -35,7 +33,7 @@ public class HandlerUtil {
     ) {
         Class<?> clazz = instance.getClass();
 
-        if (clazz.isAnnotationPresent(EventHandler.class) && IEventHandler.class.isAssignableFrom(clazz)) {
+        if (IEventHandler.class.isAssignableFrom(clazz)) {
             EventBus.registerEventHook(
                     (Class<T>) Event.class,
                     new EventHook<>(
@@ -53,12 +51,11 @@ public class HandlerUtil {
     }
 
     /**
-     * Registers a handler for a specific type of event with default parameters.
-     * The handler is registered as an event hook in the EventBus with a condition that always returns false,
-     * does not ignore its condition, and has normal priority.
-     * If the listener is not registered in the EventBus, an exception is thrown.
-     * @param instance The listener that the handler belongs to.
-     * @param handler The function that handles the event.
+     * Registers a handler for events of type T with default settings.
+     *
+     * @param <T> the type of the event to be handled
+     * @param instance the event handler instance
+     * @param handler the handler to process the event
      */
     public static <T extends Event> void handler(
             IEventHandler instance,
@@ -68,14 +65,17 @@ public class HandlerUtil {
     }
 
     /**
-     * Registers a returnable handler for a specific type of returnable event.
-     * The handler is registered as a returnable event hook in the EventBus.
-     * If the listener is not registered in the EventBus, an exception is thrown.
-     * @param instance The listener that the handler belongs to.
-     * @param condition A supplier that returns a boolean, which is the condition for the event hook.
-     * @param ignoresCondition A boolean that indicates whether the event hook ignores its condition.
-     * @param priority The priority of the event hook.
-     * @param handler The function that handles the returnable event and returns a result.
+     * Registers a handler for returnable events of type T.
+     *
+     * @param <T> the type of the event to be handled
+     * @param <R> the type of the return value
+     * @param instance the event handler instance
+     * @param condition a supplier providing the condition to be checked
+     * @param ignoresCondition whether the condition should be ignored
+     * @param priority the priority of the event handler
+     * @param handler the handler to process the event
+     * @param timeout the timeout for the event handler
+     * @throws IllegalStateException if the listener is not registered
      */
     public static <T extends ReturnableEvent<R>, R> void returnableHandler(
             @NotNull IEventHandler instance,
@@ -87,7 +87,7 @@ public class HandlerUtil {
     ) {
         Class<?> clazz = instance.getClass();
 
-        if (clazz.isAnnotationPresent(EventHandler.class) && IEventHandler.class.isAssignableFrom(clazz)) {
+        if (IEventHandler.class.isAssignableFrom(clazz)) {
             EventBus.registerReturnableEventHook(
                     (Class<T>) (Class<?>) ReturnableEvent.class,
                     new ReturnableEventHook<>(
@@ -105,12 +105,12 @@ public class HandlerUtil {
     }
 
     /**
-     * Registers a returnable handler for a specific type of returnable event with default parameters.
-     * The handler is registered as a returnable event hook in the EventBus with a condition that always returns false,
-     * does not ignore its condition, and has normal priority.
-     * If the listener is not registered in the EventBus, an exception is thrown.
-     * @param instance The listener that the handler belongs to.
-     * @param handler The function that handles the returnable event and returns a result.
+     * Registers a handler for returnable events of type T with default settings.
+     *
+     * @param <T> the type of the event to be handled
+     * @param <R> the type of the return value
+     * @param instance the event handler instance
+     * @param handler the handler to process the event
      */
     public static <T extends ReturnableEvent<R>, R> void returnableHandler(
             IEventHandler instance,

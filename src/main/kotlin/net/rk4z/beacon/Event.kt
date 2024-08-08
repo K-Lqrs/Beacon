@@ -1,27 +1,24 @@
-/*
- * Copyright (c) 2024 Ruxy
- * Released under the MIT license
- * https://opensource.org/license/mit
- */
+@file:Suppress("unused", "MemberVisibilityCanBePrivate")
 
 package net.rk4z.beacon
 
 /**
- * This class represents a generic event.
+ * Represents a generic event.
  */
-abstract class Event
+open class Event
 
 /**
- * This class represents a cancellable event, which is a type of event that can be cancelled.
- * @property isCancelled A boolean that indicates whether this event is cancelled.
+ * Represents an event that can be cancelled.
  */
-abstract class CancellableEvent : Event() {
+open class CancellableEvent : Event() {
+    /**
+     * Indicates whether the event is cancelled.
+     */
     var isCancelled: Boolean = false
         private set
-
     /**
-     * Sets the cancelled status of this event.
-     * @param v The new cancelled status of this event.
+     * Sets the cancellation status of the event.
+     * @param v Boolean value indicating the cancellation status.
      */
     fun setCansel(v: Boolean) {
         isCancelled = v
@@ -29,21 +26,26 @@ abstract class CancellableEvent : Event() {
 }
 
 /**
- * This class represents a returnable event.
+ * Represents an event that can return a result.
+ * @param T The type of the result.
  */
-abstract class ReturnableEvent<T> : Event() {
-    private var result: T? = null
+open class ReturnableEvent<T> : Event() {
+    /**
+     * The result of the event.
+     */
+    var result: T? = null
+        private set
 
     /**
      * Sets the result of the event.
-     * @param result The result of the event.
+     * @param result The result to set.
      */
     fun setResult(result: T) {
         this.result = result
     }
 
     /**
-     * Returns the result of the event.
+     * Gets the result of the event.
      * @return The result of the event.
      */
     fun getResult(): T? {
@@ -52,8 +54,8 @@ abstract class ReturnableEvent<T> : Event() {
 }
 
 /**
- * This enum represents the priority of an event.
- * @property v The value of the priority.
+ * Represents the priority of an event.
+ * @param v The integer value of the priority.
  */
 enum class Priority(val v: Int) {
     LOWEST(0),

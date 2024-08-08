@@ -1,9 +1,3 @@
-/*
- * Copyright (c) 2024 Ruxy
- * Released under the MIT license
- * https://opensource.org/license/mit
- */
-
 package net.rk4z.beacon
 
 import org.slf4j.Logger
@@ -13,26 +7,16 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
-/**
- * Singleton object that acts as a central hub for event handling within the application.
- * It allows for the registration and unregistration of event hooks, as well as posting events
- * to be handled by registered hooks.
- * Supports both synchronous and asynchronous event handling.
- */
-@Suppress("LoggingSimilarMessage", "UNCHECKED_CAST")
+@Suppress("UNCHECKED_CAST", "unused")
 object EventBus {
     private val logger: Logger = LoggerFactory.getLogger(EventBus::class.java.simpleName)
-
-    // Registry of event hooks, mapped by event class to a thread-safe list of hooks.
     private val registry: MutableMap<Class<out Event>, CopyOnWriteArrayList<EventHook<in Event>>> = mutableMapOf()
     private val returnableRegistry: MutableMap<Class<out ReturnableEvent<*>>, CopyOnWriteArrayList<ReturnableEventHook<in ReturnableEvent<*>, *>>> = mutableMapOf()
-
-    // Executor service for handling asynchronous event processing.
     private lateinit var asyncExecutor: ScheduledExecutorService
 
     /**
      * Registers an event hook for a specific event class.
-     * If the hook is not already registered, it is added to the registry and sorted by priority.
+     *
      * @param T The type of the event.
      * @param eventClass The class of the event to register the hook for.
      * @param eventHook The event hook to register.
@@ -50,6 +34,14 @@ object EventBus {
         }
     }
 
+    /**
+     * Registers a returnable event hook for a specific event class.
+     *
+     * @param T The type of the event.
+     * @param R The type of the return value.
+     * @param eventClass The class of the event to register the hook for.
+     * @param eventHook The returnable event hook to register.
+     */
     @JvmStatic
     fun <T : ReturnableEvent<R>, R> registerReturnableEventHook(eventClass: Class<T>, eventHook: ReturnableEventHook<T, R>) {
         val handlers = returnableRegistry.getOrPut(eventClass) { CopyOnWriteArrayList() }
@@ -64,30 +56,22 @@ object EventBus {
     }
 
     /**
-     * Unregisters an event hook for a specific event class.
+     * Processes an event based on the specified processing type.
+     *
      * @param T The type of the event.
-     * @param eventClass The class of the event to unregister the hook for.
-     * @param eventHook The event hook to unregister.
+     * @param event The event to process.
+     * @param processingType The type of processing (Sync, Async, Synchronous).
+     * @param enableDebugLog Whether to enable debug logging.
+     * @return The processed event.
      */
     @JvmStatic
-    fun <T : Event> unregisterEventHook(eventClass: Class<T>, eventHook: EventHook<T>) {
-        registry[eventClass]?.remove(eventHook as EventHook<in Event>)
-    }
-
-    /**
-     * Posts an event to be handled synchronously by all registered hooks for the event's class.
-     * Events are handled in order of priority, and handling can be short-circuited by cancellable events.
-     * @param T The type of the event.
-     * @param event The event to post.
-     * @return The event after processing.
-     */
-    @JvmStatic
-    fun <T : Event> post(event: T, enableDebugLog: Boolean? = false): T {
+    fun <T : Event> processEvent(event: T, processingType: EventProcessingType, enableDebugLog: Boolean? = false): T {
         if (enableDebugLog == true) {
             logger.info("Calling event: ${event::class.simpleName}")
         } else {
             logger.debug("Calling event: ${event::class.simpleName}")
         }
+
         val target = registry[event::class.java] ?: return event
 
         for (eventHook in target) {
@@ -102,293 +86,125 @@ object EventBus {
 
             if (eventHook.condition?.invoke() == false) {
                 continue
-            } else {
-                runCatching {
+            }
+
+            when (processingType) {
+                EventProcessingType.Sync -> {
                     val future = asyncExecutor.submit { eventHook.handler(event) }
                     if (eventHook.timeout != null) {
                         future.get(eventHook.timeout, TimeUnit.MILLISECONDS)
                     } else {
                         future.get()
                     }
-                    if (enableDebugLog == true) {
-                        logger.info("Handled event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
-                    } else {
-                        logger.debug("Handled event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
+                }
+                EventProcessingType.Async -> {
+                    asyncExecutor.submit {
+                        runCatching {
+                            eventHook.handler(event)
+                        }.onFailure {
+                            logger.error("Exception while executing handler: ${it.message}", it)
+                        }
                     }
-                }.onFailure {
-                    logger.error("Exception while executing handler: ${it.message}", it)
+                }
+                EventProcessingType.Synchronous -> {
+                    runCatching {
+                        eventHook.handler(event)
+                    }.onFailure {
+                        logger.error("Exception while executing handler: ${it.message}", it)
+                    }
                 }
             }
+
+            if (enableDebugLog == true) {
+                logger.info("Handled event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
+            } else {
+                logger.debug("Handled event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
+            }
         }
+
         return event
     }
 
     /**
-     * Posts an event to be handled asynchronously by all registered hooks for the event's class.
-     * Similar to the synchronous post-method, but event handling is performed on a separate thread.
+     * Posts an event synchronously.
+     *
      * @param T The type of the event.
-     * @param event The event to post asynchronously.
+     * @param event The event to post.
+     * @param enableDebugLog Whether to enable debug logging.
+     * @return The event after processing.
+     */
+    @JvmStatic
+    fun <T : Event> post(event: T, enableDebugLog: Boolean? = false): T {
+        return processEvent(event, EventProcessingType.Sync, enableDebugLog)
+    }
+
+    /**
+     * Posts an event asynchronously.
+     *
+     * @param T The type of the event.
+     * @param event The event to post.
+     * @param enableDebugLog Whether to enable debug logging.
      * @return The event after processing.
      */
     @JvmStatic
     fun <T : Event> postAsync(event: T, enableDebugLog: Boolean? = false): T {
-        if (enableDebugLog == true) {
-            logger.info("Calling event asynchronously: ${event::class.simpleName}")
-        } else {
-            logger.debug("Calling event asynchronously: ${event::class.simpleName}")
-        }
-
-        val target = registry[event::class.java] ?: return event
-
-        for (eventHook in target) {
-            if (event is CancellableEvent && event.isCancelled) {
-                logger.debug("Event ${event::class.simpleName} is cancelled")
-                break
-            }
-
-            if (!eventHook.ignoresCondition && !eventHook.handlerClass.handleEvents()) {
-                continue
-            }
-
-            if (eventHook.condition?.invoke() == false) {
-                continue
-            } else {
-                asyncExecutor.submit {
-                    runCatching {
-                        eventHook.handler(event)
-                    }.onSuccess {
-                        if (enableDebugLog == true) {
-                            logger.info("Handled event asynchronously: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
-                        } else {
-                            logger.debug("Handled event asynchronously: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
-                        }
-                    }.onFailure {
-                        logger.error("Exception while executing handler asynchronously: ${it.message}", it)
-                    }
-                }
-            }
-        }
-        return event
+        return processEvent(event, EventProcessingType.Async, enableDebugLog)
     }
 
-
     /**
-     * Posts an event to be handled synchronously by all registered hooks for the event's class.
-     * Similar to the post-method but ensures all handlers are executed on the calling thread.
+     * Posts an event synchronously ensuring all handlers are executed on the calling thread.
+     *
      * @param T The type of the event.
-     * @param event The event to post synchronously.
+     * @param event The event to post.
+     * @param enableDebugLog Whether to enable debug logging.
      * @return The event after processing.
      */
     @JvmStatic
     fun <T : Event> postSynchronous(event: T, enableDebugLog: Boolean? = false): T {
-        if (enableDebugLog == true) {
-            logger.info("Calling event synchronously: ${event::class.simpleName}")
-        } else {
-            logger.debug("Calling event synchronously: ${event::class.simpleName}")
-        }
-
-        val target = registry[event::class.java] ?: return event
-
-        for (eventHook in target) {
-            if (event is CancellableEvent && event.isCancelled) {
-                logger.debug("Event ${event::class.simpleName} is cancelled")
-                break
-            }
-
-            if (!eventHook.ignoresCondition && !eventHook.handlerClass.handleEvents()) {
-                continue
-            }
-
-            if (eventHook.condition?.invoke() == false) {
-                continue
-            } else {
-                runCatching {
-                    eventHook.handler(event)
-                    if (enableDebugLog == true) {
-                        logger.info("Handled event synchronously: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
-                    } else {
-                        logger.debug("Handled event synchronously: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
-                    }
-                }.onFailure {
-                    logger.error("Exception while executing handler: ${it.message}", it)
-                }
-            }
-        }
-        return event
-    }
-
-    /**
-     * Posts multiple events in parallel by all registered hooks for each event's class.
-     * @param T The type of the events.
-     * @param events The events to post in parallel.
-     * @return The events after processing.
-     */
-    @JvmStatic
-    fun <T : Event> postParallel(vararg events: T, enableDebugLog: Boolean? = false): List<T> {
-        if (enableDebugLog == true) {
-            logger.info("Calling events in parallel")
-        } else {
-            logger.debug("Calling events in parallel")
-        }
-
-        val futures = events.map { event ->
-            asyncExecutor.submit<T> {
-                post(event)
-            }
-        }
-
-        return futures.map { future ->
-            try {
-                future.get()
-            } catch (e: Exception) {
-                logger.error("Exception while executing parallel event: ${e.message}", e)
-                throw e
-            }
-        }
+        return processEvent(event, EventProcessingType.Synchronous, enableDebugLog)
     }
 
     /**
      * Posts an event to be handled after a specified delay by all registered hooks for the event's class.
+     *
      * @param T The type of the event.
      * @param event The event to post.
      * @param delay The delay after which the event should be handled.
      * @param timeUnit The time unit of the delay.
+     * @param processingType The type of processing (Sync, Async, Synchronous).
+     * @param enableDebugLog Whether to enable debug logging.
      * @return The event after processing.
      */
     @JvmStatic
-    fun <T : Event> postDelayed(event: T, delay: Long, timeUnit: TimeUnit, enableDebugLog: Boolean? = false): T {
-        if (enableDebugLog == true) {
-            logger.info("Calling event with delay: ${event::class.simpleName}")
-        } else {
-            logger.debug("Calling event with delay: ${event::class.simpleName}")
-        }
-
-        val target = registry[event::class.java] ?: return event
-
+    fun <T : Event> postDelayed(event: T, delay: Long, timeUnit: TimeUnit, processingType: EventProcessingType, enableDebugLog: Boolean? = false): T {
         asyncExecutor.schedule({
-            for (eventHook in target) {
-                if (event is CancellableEvent && event.isCancelled) {
-                    logger.debug("Event ${event::class.simpleName} is cancelled")
-                    break
-                }
-
-                if (!eventHook.ignoresCondition && !eventHook.handlerClass.handleEvents()) {
-                    continue
-                }
-
-                if (eventHook.condition?.invoke() == false) {
-                    continue
-                }
-
-                runCatching {
-                    eventHook.handler(event)
-                    if (enableDebugLog == true) {
-                        logger.info("Handled event with delay: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
-                    } else {
-                        logger.debug("Handled event with delay: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
-                    }
-                }.onFailure {
-                    logger.error("Exception while executing handler: ${it.message}", it)
-                }
-            }
+            processEvent(event, processingType, enableDebugLog)
         }, delay, timeUnit)
-
         return event
     }
 
     /**
      * Posts an event to be handled within a specified timeout by all registered hooks for the event's class.
+     *
      * @param T The type of the event.
      * @param event The event to post.
      * @param timeout The timeout within which the event should be handled.
      * @param timeUnit The time unit of the timeout.
+     * @param processingType The type of processing (Sync, Async, Synchronous).
+     * @param enableDebugLog Whether to enable debug logging.
      * @return The event after processing.
      */
     @JvmStatic
-    fun <T : Event> postWithTimeout(event: T, timeout: Long, timeUnit: TimeUnit, enableDebugLog: Boolean? = false): T {
-        if (enableDebugLog == true) {
-            logger.info("Calling event with timeout: ${event::class.simpleName}")
-        } else {
-            logger.debug("Calling event with timeout: ${event::class.simpleName}")
+    fun <T : Event> postWithTimeout(event: T, timeout: Long, timeUnit: TimeUnit, processingType: EventProcessingType, enableDebugLog: Boolean? = false): T {
+        val future = asyncExecutor.submit<T> {
+            processEvent(event, processingType, enableDebugLog)
+            event
         }
 
-        val target = registry[event::class.java] ?: return event
-
-        for (eventHook in target) {
-            if (event is CancellableEvent && event.isCancelled) {
-                logger.debug("Event ${event::class.simpleName} is cancelled")
-                break
-            }
-
-            if (!eventHook.ignoresCondition && !eventHook.handlerClass.handleEvents()) {
-                continue
-            }
-
-            if (eventHook.condition?.invoke() == false) {
-                continue
-            }
-
-            val future = asyncExecutor.submit { eventHook.handler(event) }
-
-            runCatching {
-                future.get(timeout, timeUnit)
-                if (enableDebugLog == true) {
-                    logger.info("Handled event with timeout: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
-                } else {
-                    logger.debug("Handled event with timeout: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
-                }
-            }.onFailure {
-                logger.error("Exception while executing handler: ${it.message}", it)
-            }
-        }
-
-        return event
-    }
-
-    /**
-     * Posts an event multiple times in sequence by all registered hooks for the event's class.
-     * @param T The type of the event.
-     * @param event The event to post.
-     * @param repeatCount The number of times to repeat the event.
-     * @return The event after processing.
-     */
-    @JvmStatic
-    fun <T : Event> postRepeated(event: T, repeatCount: Int, enableDebugLog: Boolean? = false): T {
-        if (enableDebugLog == true) {
-            logger.info("Calling event repeated: ${event::class.simpleName}")
-        } else {
-            logger.debug("Calling event repeated: ${event::class.simpleName}")
-        }
-
-        val target = registry[event::class.java] ?: return event
-
-        for (i in 1..repeatCount) {
-            logger.debug("Repeat count: $i of $repeatCount")
-            for (eventHook in target) {
-                if (event is CancellableEvent && event.isCancelled) {
-                    logger.debug("Event ${event::class.simpleName} is cancelled")
-                    break
-                }
-
-                if (!eventHook.ignoresCondition && !eventHook.handlerClass.handleEvents()) {
-                    continue
-                }
-
-                if (eventHook.condition?.invoke() == false) {
-                    continue
-                }
-
-                runCatching {
-                    eventHook.handler(event)
-                    if (enableDebugLog == true) {
-                        logger.info("Handled event repeated: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
-                    } else {
-                        logger.debug("Handled event repeated: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
-                    }
-                }.onFailure {
-                    logger.error("Exception while executing handler: ${it.message}", it)
-                }
-            }
+        runCatching {
+            future.get(timeout, timeUnit)
+        }.onFailure {
+            logger.error("Exception while executing handler with timeout: ${it.message}", it)
         }
 
         return event
@@ -396,86 +212,42 @@ object EventBus {
 
     /**
      * Posts an event to be handled asynchronously, with a callback executed upon completion.
+     *
      * @param T The type of the event.
      * @param event The event to post.
      * @param callback The callback to execute upon completion.
+     * @param delay Optional delay before executing the callback.
+     * @param processingType The type of processing (Sync, Async, Synchronous).
+     * @param enableDebugLog Whether to enable debug logging.
      * @return The event after processing.
      */
     @JvmStatic
-    fun <T : Event> postWithCallback(event: T, callback: (T) -> Unit, enableDebugLog: Boolean? = false): T {
-        if (enableDebugLog == true) {
-            logger.info("Calling event with callback: ${event::class.simpleName}")
+    fun <T : Event> postWithCallback(event: T, callback: (T) -> Unit, delay: Long?, processingType: EventProcessingType, enableDebugLog: Boolean? = false): T {
+        if (delay != null) {
+            asyncExecutor.schedule({
+                val processedEvent = processEvent(event, processingType, enableDebugLog)
+                callback(processedEvent)
+            }, delay, TimeUnit.MILLISECONDS)
         } else {
-            logger.debug("Calling event with callback: ${event::class.simpleName}")
-        }
-
-        val target = registry[event::class.java] ?: return event
-
-        asyncExecutor.submit {
-            for (eventHook in target) {
-                if (event is CancellableEvent && event.isCancelled) {
-                    logger.debug("Event ${event::class.simpleName} is cancelled")
-                    break
-                }
-
-                if (!eventHook.ignoresCondition && !eventHook.handlerClass.handleEvents()) {
-                    continue
-                }
-
-                if (eventHook.condition?.invoke() == false) {
-                    continue
-                }
-
-                runCatching {
-                    eventHook.handler(event)
-                    if (enableDebugLog == true) {
-                        logger.info("Handled event with callback: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
-                    } else {
-                        logger.debug("Handled event with callback: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
-                    }
-                }.onFailure {
-                    logger.error("Exception while executing handler: ${it.message}", it)
-                }
-            }
-            callback(event)
+            val processedEvent = processEvent(event, processingType, enableDebugLog)
+            callback(processedEvent)
         }
 
         return event
     }
 
     /**
-     * Posts multiple events in the specified order.
-     * @param T The type of the events.
-     * @param events The events to post in order.
-     * @return The events after processing.
-     */
-    @JvmStatic
-    fun <T : Event> postInOrder(vararg events: T, enableDebugLog: Boolean? = false): List<T> {
-        if (enableDebugLog == true) {
-            logger.info("Calling events in order")
-        } else {
-            logger.debug("Calling events in order")
-        }
-
-        val processedEvents = mutableListOf<T>()
-
-        for (event in events) {
-            val processedEvent = post(event)
-            processedEvents.add(processedEvent)
-        }
-
-        return processedEvents
-    }
-
-    /**
      * Posts an event to be handled synchronously by all registered hooks for the event's class and returns the result.
+     *
      * @param T The type of the event.
      * @param R The type of the return value.
      * @param event The event to post.
+     * @param processingType The type of processing (Sync, Async, Synchronous).
+     * @param enableDebugLog Whether to enable debug logging.
      * @return The result of the event after processing.
      */
     @JvmStatic
-    fun <T : ReturnableEvent<R>, R> postReturnable(event: T, enableDebugLog: Boolean? = false): R? {
+    fun <T : ReturnableEvent<R>, R> postReturnable(event: T, processingType: EventProcessingType, enableDebugLog: Boolean? = false): R? {
         if (enableDebugLog == true) {
             logger.info("Calling returnable event: ${event::class.simpleName}")
         } else {
@@ -491,22 +263,49 @@ object EventBus {
             if (eventHook.condition?.invoke() == false) {
                 continue
             } else {
-                runCatching {
-                    val result = (eventHook as ReturnableEventHook<T, R>).handler(event)
-                    event.setResult(result)
-                    if (enableDebugLog == true) {
-                        logger.info("Handled returnable event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
-                    } else {
-                        logger.debug("Handled returnable event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
+                when (processingType) {
+                    EventProcessingType.Sync -> {
+                        val future = asyncExecutor.submit<R> { (eventHook as ReturnableEventHook<T, R>).handler(event) }
+                        runCatching {
+                            val result = if (eventHook.timeout != null) {
+                                future.get(eventHook.timeout, TimeUnit.MILLISECONDS)
+                            } else {
+                                future.get()
+                            }
+                            event.setResult(result)
+                        }.onFailure {
+                            logger.error("Exception while executing handler: ${it.message}", it)
+                        }
                     }
-                }.onFailure {
-                    logger.error("Exception while executing handler: ${it.message}", it)
+                    EventProcessingType.Async -> {
+                        asyncExecutor.submit {
+                            runCatching {
+                                val result = (eventHook as ReturnableEventHook<T, R>).handler(event)
+                                event.setResult(result)
+                            }.onFailure {
+                                logger.error("Exception while executing handler: ${it.message}", it)
+                            }
+                        }
+                    }
+                    EventProcessingType.Synchronous -> {
+                        runCatching {
+                            val result = (eventHook as ReturnableEventHook<T, R>).handler(event)
+                            event.setResult(result)
+                        }.onFailure {
+                            logger.error("Exception while executing handler: ${it.message}", it)
+                        }
+                    }
+                }
+
+                if (enableDebugLog == true) {
+                    logger.info("Handled returnable event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
+                } else {
+                    logger.debug("Handled returnable event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
                 }
             }
         }
         return event.getResult()
     }
-
 
     /**
      * Initializes the EventBus, setting up the asynchronous executor service.
@@ -516,7 +315,6 @@ object EventBus {
     fun initialize() {
         asyncExecutor = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors())
         Runtime.getRuntime().addShutdownHook(Thread {
-            // Cleanly shut down the executor service on application exit
             shutdown()
         })
         logger.info("EventBus initialized")

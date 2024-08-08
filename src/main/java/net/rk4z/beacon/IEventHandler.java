@@ -1,21 +1,16 @@
-/*
- * Copyright (c) 2024 Ruxy
- * Released under the MIT license
- * https://opensource.org/license/mit
- */
-
 package net.rk4z.beacon;
 
 import java.util.List;
 
+/**
+ * Interface representing an event handler.
+ */
 public interface IEventHandler {
 
     /**
-     * Returns whether this listener can handle events.
-     * If this listener has a parent, it returns whether the parent can handle events.
-     * Otherwise, it returns true.
+     * Handles events for this handler.
      *
-     * @return A boolean indicating whether this listener can handle events.
+     * @return true if the events are handled successfully, false otherwise
      */
     default boolean handleEvents() {
         IEventHandler parent = parent();
@@ -23,26 +18,25 @@ public interface IEventHandler {
     }
 
     /**
-     * Returns the parent of this listener, or null if it has no parent.
+     * Returns the parent event handler.
      *
-     * @return The parent of this listener, or null if it has no parent.
+     * @return the parent event handler, or null if there is no parent
      */
     default IEventHandler parent() {
         return null;
     }
 
     /**
-     * Returns the children of this listener.
-     * By default, a listener has no children.
+     * Returns the list of child event handlers.
      *
-     * @return List of children.
+     * @return a list of child event handlers
      */
     default List<IEventHandler> children() {
         return List.of();
     }
 
     /**
-     * Unregisters this listener and all its children.
+     * Unregisters this event handler and all its children.
      */
     default void unregister() {
         for (IEventHandler child : children()) {
