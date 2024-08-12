@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit
 object EventBus {
     private val logger: Logger = LoggerFactory.getLogger(EventBus::class.java.simpleName)
     private val registry: MutableMap<Class<out Event>, CopyOnWriteArrayList<EventHook<in Event>>> = mutableMapOf()
-    private val returnableRegistry: MutableMap<Class<out ReturnableEvent<*>>, CopyOnWriteArrayList<ReturnableEventHook<in ReturnableEvent<*>, *>>> = mutableMapOf()
+    private val returnableRegistry: MutableMap<Class<out ReturnableEvent<*>>, MutableMap<String, ReturnableEventHook<out ReturnableEvent<*>, *>>> = mutableMapOf()
     private lateinit var asyncExecutor: ScheduledExecutorService
 
     /**
@@ -27,12 +27,13 @@ object EventBus {
 
         val hook = eventHook as EventHook<in Event>
 
-        if (!handlers.contains(hook)) {
-            handlers.add(hook)
+        if (handlers.contains(hook).not()) {
+            handlers.add(eventHook as EventHook<in Event>)
             handlers.sortBy { it.priority.v }
             logger.info("Registered event hook for ${eventClass.simpleName} with priority ${eventHook.priority}")
         }
     }
+
 
     /**
      * Registers a returnable event hook for a specific event class.
@@ -44,13 +45,13 @@ object EventBus {
      */
     @JvmStatic
     fun <T : ReturnableEvent<R>, R> registerReturnableEventHook(eventClass: Class<T>, eventHook: ReturnableEventHook<T, R>) {
-        val handlers = returnableRegistry.getOrPut(eventClass) { CopyOnWriteArrayList() }
+        val handlers = returnableRegistry.getOrPut(eventClass) { mutableMapOf() }
 
-        val hook = eventHook as ReturnableEventHook<in ReturnableEvent<*>, *>
+        val handlerKey = eventHook.handlerClass::class.simpleName + eventHook.priority.v
 
-        if (!handlers.contains(hook)) {
-            handlers.add(hook)
-            handlers.sortBy { it.priority.v }
+        if (handlers.containsKey(handlerKey).not()) {
+            handlers[handlerKey] = eventHook as ReturnableEventHook<out ReturnableEvent<*>, *>
+            handlers.values.sortedBy { it.priority.v }
             logger.info("Registered returnable event hook for ${eventClass.simpleName} with priority ${eventHook.priority}")
         }
     }
@@ -253,7 +254,8 @@ object EventBus {
         } else {
             logger.debug("Calling returnable event: ${event::class.simpleName}")
         }
-        val target = returnableRegistry[event::class.java] ?: return null
+        val handlersMap = returnableRegistry[event::class.java] ?: return null
+        val target = handlersMap.values
 
         for (eventHook in target) {
             if (!eventHook.ignoresCondition && !eventHook.handlerClass.handleEvents()) {
