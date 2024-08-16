@@ -1,11 +1,16 @@
 package net.rk4z.beacon
 
+import org.reflections.Reflections
+import org.reflections.scanners.Scanners
+import org.reflections.util.ConfigurationBuilder
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
+import kotlin.reflect.full.createInstance
+import kotlin.reflect.full.isSubclassOf
 
 @Suppress("UNCHECKED_CAST", "unused")
 object EventBus {
@@ -314,12 +319,38 @@ object EventBus {
      * Also registers a shutdown hook to cleanly shut down the executor service on application exit.
      */
     @JvmStatic
-    fun initialize() {
+    fun initialize(packageName: String) {
         asyncExecutor = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors())
         Runtime.getRuntime().addShutdownHook(Thread {
             shutdown()
         })
+        initializeEventHandlers(packageName)
         logger.info("EventBus initialized")
+    }
+
+    private fun initializeEventHandlers(packageName: String) {
+        try {
+            val reflections = Reflections(
+                ConfigurationBuilder()
+                    .forPackage(packageName)
+                    .addScanners(Scanners.SubTypes)
+            )
+
+            val subTypes = reflections.getSubTypesOf(IEventHandler::class.java)
+
+            for (subType in subTypes) {
+                try {
+                    val kClass = subType.kotlin
+                    if (kClass.isSubclassOf(IEventHandler::class)) {
+                        kClass.createInstance()
+                    }
+                } catch (e: Exception) {
+                    logger.error("Failed to initialize event handler: ${subType.name}", e)
+                }
+            }
+        } catch (e: Exception) {
+            logger.error("Failed to scan package: $packageName", e)
+        }
     }
 
     /**
