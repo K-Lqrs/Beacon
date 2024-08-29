@@ -14,7 +14,7 @@ import kotlin.reflect.full.isSubclassOf
 
 @Suppress("UNCHECKED_CAST", "unused")
 object EventBus {
-    private val logger: Logger = LoggerFactory.getLogger(EventBus::class.java.simpleName)
+    internal val logger: Logger = LoggerFactory.getLogger(EventBus::class.java.simpleName)
     private val registry: MutableMap<Class<out Event>, CopyOnWriteArrayList<EventHook<in Event>>> = mutableMapOf()
     private val returnableRegistry: MutableMap<Class<out ReturnableEvent<*>>, MutableMap<String, ReturnableEventHook<out ReturnableEvent<*>, *>>> = mutableMapOf()
     private lateinit var asyncExecutor: ScheduledExecutorService

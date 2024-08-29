@@ -5,13 +5,14 @@ import java.io.FileInputStream
 import java.util.*
 
 plugins {
-    kotlin("jvm") version "2.0.0"
+    kotlin("jvm") version "2.0.20"
+    kotlin("plugin.serialization") version "2.0.20"
     `maven-publish`
-    id("cl.franciscosolis.sonatype-central-upload") version "1.0.2"
+    id("cl.franciscosolis.sonatype-central-upload") version "1.0.3"
     id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
-version = "1.4.0"
+version = "1.4.1"
 group = "net.rk4z"
 
 val localProperties = Properties().apply {
@@ -25,6 +26,8 @@ repositories {
 dependencies {
     implementation("org.reflections:reflections:0.10.2")
     implementation("org.jetbrains.kotlin:kotlin-reflect:2.0.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
+    implementation("org.jmdns:jmdns:3.5.12")
 }
 
 java {
@@ -58,6 +61,7 @@ tasks.named<Jar>("jar") {
 
 publishing {
     publications {
+        //maven
         create<MavenPublication>("maven") {
 
             groupId = project.group.toString()
@@ -91,6 +95,9 @@ publishing {
                 dependencies
             }
         }
+    }
+    repositories {
+        mavenLocal()
     }
 }
 

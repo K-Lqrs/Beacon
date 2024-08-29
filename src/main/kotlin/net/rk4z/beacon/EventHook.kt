@@ -147,4 +147,15 @@ sealed class EventProcessingType {
      * Synchronous event processing (alias for Sync).
      */
     data object Synchronous : EventProcessingType()
+
+    companion object {
+        fun fromString(type: String): EventProcessingType {
+            return when (type.uppercase()) {
+                "SYNC" -> Sync
+                "ASYNC" -> Async
+                "SYNCHRONOUS" -> Synchronous
+                else -> throw IllegalArgumentException("Unknown EventProcessingType: $type")
+            }
+        }
+    }
 }
