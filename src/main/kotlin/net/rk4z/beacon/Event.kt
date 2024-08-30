@@ -45,6 +45,7 @@ abstract class ReturnableEvent<T> : Event() {
     }
 }
 
+
 /**
  * Represents the priority of an event.
  * @param v The integer value of the priority.

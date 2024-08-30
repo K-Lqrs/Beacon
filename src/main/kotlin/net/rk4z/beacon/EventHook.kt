@@ -122,7 +122,8 @@ inline fun <reified T : ReturnableEvent<R>, R> IEventHandler.returnableHandler(
                 ignoresCondition,
                 priority,
                 condition,
-                timeout)
+                timeout
+            )
         )
     } else {
         throw IllegalStateException("Classes containing event handlers need to be implemented with IEventHandler: ${clazz.simpleName}")
