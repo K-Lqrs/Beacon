@@ -19,7 +19,6 @@ object EventBus {
     internal val logger: Logger = LoggerFactory.getLogger(EventBus::class.java.simpleName)
     internal val registry: MutableMap<Class<out Event>, CopyOnWriteArrayList<EventHook<in Event>>> = mutableMapOf()
     internal val returnableRegistry: MutableMap<Class<out ReturnableEvent<*>>, MutableMap<String, ReturnableEventHook<out ReturnableEvent<*>, *>>> = mutableMapOf()
-    private val eventCache: MutableMap<Class<out Event>, List<EventHook<in Event>>> = mutableMapOf()
     internal lateinit var asyncExecutor: ScheduledExecutorService
 
     /**
@@ -80,9 +79,7 @@ object EventBus {
             logger.debug("Calling event: ${event::class.simpleName}")
         }
 
-        val target = eventCache[event::class.java] ?: registry[event::class.java]?.also {
-            eventCache[event::class.java] = it
-        } ?: return event
+        val target = registry[event::class.java] ?: return event
 
         if (event is CancellableEvent && event.isCancelled) {
             logger.debug("Event ${event::class.simpleName} is cancelled")
@@ -391,7 +388,6 @@ object EventBus {
             asyncExecutor.shutdownNow()
         }
         registry.clear()
-        eventCache.clear() // キャッシュもクリア
         logger.info("EventBus shutdown")
     }
 }
