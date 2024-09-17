@@ -20,7 +20,7 @@ abstract class CancellableEvent : Event() {
      * Sets the cancellation status of the event.
      * @param v Boolean value indicating the cancellation status.
      */
-    fun setCansel(v: Boolean) {
+    fun setCancel(v: Boolean) {
         isCancelled = v
     }
 }

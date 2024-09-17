@@ -6,9 +6,11 @@ import org.reflections.util.ConfigurationBuilder
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import kotlin.reflect.full.createInstance
 import kotlin.reflect.full.isSubclassOf
 
@@ -17,6 +19,7 @@ object EventBus {
     internal val logger: Logger = LoggerFactory.getLogger(EventBus::class.java.simpleName)
     internal val registry: MutableMap<Class<out Event>, CopyOnWriteArrayList<EventHook<in Event>>> = mutableMapOf()
     internal val returnableRegistry: MutableMap<Class<out ReturnableEvent<*>>, MutableMap<String, ReturnableEventHook<out ReturnableEvent<*>, *>>> = mutableMapOf()
+    private val eventCache: MutableMap<Class<out Event>, List<EventHook<in Event>>> = mutableMapOf()
     internal lateinit var asyncExecutor: ScheduledExecutorService
 
     /**
@@ -77,14 +80,16 @@ object EventBus {
             logger.debug("Calling event: ${event::class.simpleName}")
         }
 
-        val target = registry[event::class.java] ?: return event
+        val target = eventCache[event::class.java] ?: registry[event::class.java]?.also {
+            eventCache[event::class.java] = it
+        } ?: return event
+
+        if (event is CancellableEvent && event.isCancelled) {
+            logger.debug("Event ${event::class.simpleName} is cancelled")
+            return event
+        }
 
         for (eventHook in target) {
-            if (event is CancellableEvent && event.isCancelled) {
-                logger.debug("Event ${event::class.simpleName} is cancelled")
-                break
-            }
-
             if (!eventHook.ignoresCondition && !eventHook.handlerClass.handleEvents()) {
                 continue
             }
@@ -94,7 +99,7 @@ object EventBus {
             }
 
             when (processingType) {
-                EventProcessingType.Sync -> {
+                EventProcessingType.HandlerAsync -> {
                     val future = asyncExecutor.submit { eventHook.handler(event) }
                     if (eventHook.timeout != null) {
                         future.get(eventHook.timeout, TimeUnit.MILLISECONDS)
@@ -103,7 +108,7 @@ object EventBus {
                     }
                 }
                 EventProcessingType.Async -> {
-                    asyncExecutor.submit {
+                    asyncExecutor.execute {
                         runCatching {
                             eventHook.handler(event)
                         }.onFailure {
@@ -111,7 +116,7 @@ object EventBus {
                         }
                     }
                 }
-                EventProcessingType.Synchronous -> {
+                EventProcessingType.FullSync -> {
                     runCatching {
                         eventHook.handler(event)
                     }.onFailure {
@@ -139,8 +144,8 @@ object EventBus {
      * @return The event after processing.
      */
     @JvmStatic
-    fun <T : Event> post(event: T, enableDebugLog: Boolean? = false): T {
-        return processEvent(event, EventProcessingType.Sync, enableDebugLog)
+    fun <T : Event> postSync(event: T, enableDebugLog: Boolean? = false): T {
+        return processEvent(event, EventProcessingType.HandlerAsync, enableDebugLog)
     }
 
     /**
@@ -165,8 +170,8 @@ object EventBus {
      * @return The event after processing.
      */
     @JvmStatic
-    fun <T : Event> postSynchronous(event: T, enableDebugLog: Boolean? = false): T {
-        return processEvent(event, EventProcessingType.Synchronous, enableDebugLog)
+    fun <T : Event> postFullSync(event: T, enableDebugLog: Boolean? = false): T {
+        return processEvent(event, EventProcessingType.FullSync, enableDebugLog)
     }
 
     /**
@@ -206,10 +211,18 @@ object EventBus {
             event
         }
 
-        runCatching {
+        try {
             future.get(timeout, timeUnit)
-        }.onFailure {
-            logger.error("Exception while executing handler with timeout: ${it.message}", it)
+        } catch (e: TimeoutException) {
+            logger.error("Timeout occurred while executing handler for event: ${event::class.simpleName}")
+            if (event is CancellableEvent) {
+                event.setCancel(true)
+            }
+        } catch (e: InterruptedException) {
+            logger.error("Thread was interrupted while processing event: ${event::class.simpleName}", e)
+            Thread.currentThread().interrupt()
+        } catch (e: ExecutionException) {
+            logger.error("Execution exception occurred while processing event: ${event::class.simpleName}", e)
         }
 
         return event
@@ -252,48 +265,48 @@ object EventBus {
      * @return The result of the event after processing.
      */
     @JvmStatic
-    fun <T : ReturnableEvent<R>, R> postReturnable(event: T, processingType: EventProcessingType, enableDebugLog: Boolean? = false): R? {
+    fun <T : ReturnableEvent<R>, R> postReturnable(
+        event: T,
+        processingType: EventProcessingType,
+        enableDebugLog: Boolean? = false
+    ): R? {
         if (enableDebugLog == true) {
             logger.info("Calling returnable event: ${event::class.simpleName}")
         } else {
             logger.debug("Calling returnable event: ${event::class.simpleName}")
         }
+
         val handlersMap = returnableRegistry[event::class.java] ?: return null
         val target = handlersMap.values
 
         for (eventHook in target) {
-            if (!eventHook.ignoresCondition && !eventHook.handlerClass.handleEvents()) {
-                continue
-            }
+            if (!eventHook.ignoresCondition && !eventHook.handlerClass.handleEvents()) continue
+            if (eventHook.condition?.invoke() == false) continue
 
-            if (eventHook.condition?.invoke() == false) {
-                continue
-            } else {
-                when (processingType) {
-                    EventProcessingType.Sync -> {
-                        val future = asyncExecutor.submit<R> { (eventHook as ReturnableEventHook<T, R>).handler(event) }
-                        runCatching {
-                            val result = if (eventHook.timeout != null) {
-                                future.get(eventHook.timeout, TimeUnit.MILLISECONDS)
-                            } else {
-                                future.get()
+            when (processingType) {
+                EventProcessingType.HandlerAsync -> {
+                    val future = asyncExecutor.submit<R> { (eventHook as ReturnableEventHook<T, R>).handler(event) }
+                    runCatching {
+                        val result = if (eventHook.timeout != null) {
+                            future.get(eventHook.timeout, TimeUnit.MILLISECONDS)
+                        } else {
+                            future.get()
+                        }
+                        event.setResult(result)
+                    }.onFailure { exception ->
+                        when (exception) {
+                            is TimeoutException -> logger.error("Timeout occurred while processing event: ${event::class.simpleName}")
+                            is InterruptedException -> {
+                                logger.error("Thread was interrupted during event processing: ${event::class.simpleName}", exception)
+                                Thread.currentThread().interrupt()
                             }
-                            event.setResult(result)
-                        }.onFailure {
-                            logger.error("Exception while executing handler: ${it.message}", it)
+                            is ExecutionException -> logger.error("Execution error during event processing: ${exception.message}", exception)
+                            else -> logger.error("Exception while executing handler: ${exception.message}", exception)
                         }
                     }
-                    EventProcessingType.Async -> {
-                        asyncExecutor.submit {
-                            runCatching {
-                                val result = (eventHook as ReturnableEventHook<T, R>).handler(event)
-                                event.setResult(result)
-                            }.onFailure {
-                                logger.error("Exception while executing handler: ${it.message}", it)
-                            }
-                        }
-                    }
-                    EventProcessingType.Synchronous -> {
+                }
+                EventProcessingType.Async -> {
+                    asyncExecutor.execute {
                         runCatching {
                             val result = (eventHook as ReturnableEventHook<T, R>).handler(event)
                             event.setResult(result)
@@ -302,30 +315,44 @@ object EventBus {
                         }
                     }
                 }
-
-                if (enableDebugLog == true) {
-                    logger.info("Handled returnable event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
-                } else {
-                    logger.debug("Handled returnable event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
+                EventProcessingType.FullSync -> {
+                    runCatching {
+                        val result = (eventHook as ReturnableEventHook<T, R>).handler(event)
+                        event.setResult(result)
+                    }.onFailure {
+                        logger.error("Exception while executing handler: ${it.message}", it)
+                    }
                 }
             }
+
+            if (enableDebugLog == true) {
+                logger.info("Handled returnable event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
+            } else {
+                logger.debug("Handled returnable event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
+            }
         }
+
         return event.result
     }
+
 
     /**
      * Initializes the EventBus, setting up the asynchronous executor service.
      * Also registers a shutdown hook to cleanly shut down the executor service on application exit.
      */
     @JvmStatic
-    fun initialize(packageName: String) {
-        asyncExecutor = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors())
+    fun initialize(packageName: String, threadPoolSize: Int = Runtime.getRuntime().availableProcessors()) {
+        if (::asyncExecutor.isInitialized && !asyncExecutor.isShutdown) {
+            shutdown()
+        }
+        asyncExecutor = Executors.newScheduledThreadPool(threadPoolSize)
         Runtime.getRuntime().addShutdownHook(Thread {
             shutdown()
         })
         initializeEventHandlers(packageName)
         logger.info("EventBus initialized")
     }
+
 
     private fun initializeEventHandlers(packageName: String) {
         try {
@@ -359,8 +386,12 @@ object EventBus {
     @JvmStatic
     fun shutdown() {
         asyncExecutor.shutdown()
-        asyncExecutor.awaitTermination(10, TimeUnit.SECONDS)
+        if (!asyncExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
+            logger.warn("Forcing shutdown of EventBus executor")
+            asyncExecutor.shutdownNow()
+        }
         registry.clear()
+        eventCache.clear() // キャッシュもクリア
         logger.info("EventBus shutdown")
     }
 }
