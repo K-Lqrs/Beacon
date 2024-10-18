@@ -338,7 +338,7 @@ object EventBus {
      * Also registers a shutdown hook to cleanly shut down the executor service on application exit.
      */
     @JvmStatic
-    fun initialize(packageName: String, threadPoolSize: Int = Runtime.getRuntime().availableProcessors()) {
+    fun initialize(vararg packageNames: String, threadPoolSize: Int = Runtime.getRuntime().availableProcessors()) {
         if (::asyncExecutor.isInitialized && !asyncExecutor.isShutdown) {
             shutdown()
         }
@@ -346,7 +346,11 @@ object EventBus {
         Runtime.getRuntime().addShutdownHook(Thread {
             shutdown()
         })
-        initializeEventHandlers(packageName)
+
+        for (packageName in packageNames) {
+            initializeEventHandlers(packageName)
+        }
+
         logger.info("EventBus initialized")
     }
 
