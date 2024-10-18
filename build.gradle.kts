@@ -12,7 +12,7 @@ plugins {
     id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
-version = "1.4.6"
+version = "1.4.7"
 group = "net.rk4z"
 
 val localProperties = Properties().apply {
@@ -24,10 +24,10 @@ repositories {
 }
 
 dependencies {
+
     implementation("org.reflections:reflections:0.10.2")
     implementation("org.jetbrains.kotlin:kotlin-reflect:2.0.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
-    implementation("org.jmdns:jmdns:3.5.12")
 }
 
 java {

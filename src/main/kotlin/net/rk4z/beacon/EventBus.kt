@@ -11,8 +11,6 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
-import kotlin.reflect.full.createInstance
-import kotlin.reflect.full.isSubclassOf
 
 @Suppress("UNCHECKED_CAST", "unused")
 object EventBus {
@@ -141,7 +139,7 @@ object EventBus {
      * @return The event after processing.
      */
     @JvmStatic
-    fun <T : Event> postSync(event: T, enableDebugLog: Boolean? = false): T {
+    fun <T : Event> postHandlerSync(event: T, enableDebugLog: Boolean? = false): T {
         return processEvent(event, EventProcessingType.HandlerAsync, enableDebugLog)
     }
 
@@ -303,14 +301,7 @@ object EventBus {
                     }
                 }
                 EventProcessingType.Async -> {
-                    asyncExecutor.execute {
-                        runCatching {
-                            val result = (eventHook as ReturnableEventHook<T, R>).handler(event)
-                            event.setResult(result)
-                        }.onFailure {
-                            logger.error("Exception while executing handler: ${it.message}", it)
-                        }
-                    }
+                    throw UnsupportedParameterException("Async cannot be used in returnable events due to instability. For lightweight processing, use HandlerASync.")
                 }
                 EventProcessingType.FullSync -> {
                     runCatching {
@@ -367,14 +358,12 @@ object EventBus {
 
             for (subType in subTypes) {
                 try {
-                    val kClass = subType.kotlin
-                    if (kClass.isSubclassOf(IEventHandler::class)) {
-                        kClass.createInstance()
-                    }
+                    subType.getDeclaredConstructor().newInstance()
                 } catch (e: Exception) {
                     logger.error("Failed to initialize event handler: ${subType.name}", e)
                 }
             }
+
         } catch (e: Exception) {
             logger.error("Failed to scan package: $packageName", e)
         }

@@ -4,6 +4,7 @@ import kotlin.Unit;
 import kotlin.jvm.functions.Function0;
 import kotlin.jvm.functions.Function1;
 import net.rk4z.beacon.*;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Supplier;
@@ -16,6 +17,7 @@ public class HandlerUtil {
      *
      * @param <T> the type of the event to be handled
      * @param instance the event handler instance
+     * @param eventType the class type of the event
      * @param condition a supplier providing the condition to be checked
      * @param ignoresCondition whether the condition should be ignored
      * @param priority the priority of the event handler
@@ -23,8 +25,9 @@ public class HandlerUtil {
      * @param timeout the timeout for the event handler
      * @throws IllegalStateException if the listener is not registered
      */
-    public static <T extends Event> void handler(
+    public static <T extends Event> Unit handler(
             @NotNull IEventHandler instance,
+            Class<T> eventType,
             Supplier<Boolean> condition,
             boolean ignoresCondition,
             Priority priority,
@@ -33,21 +36,22 @@ public class HandlerUtil {
     ) {
         Class<?> clazz = instance.getClass();
 
-        if (IEventHandler.class.isAssignableFrom(clazz)) {
-            EventBus.registerEventHook(
-                    (Class<T>) Event.class,
-                    new EventHook<>(
-                            instance,
-                            (Function1<? super T, Unit>) handler,
-                            ignoresCondition,
-                            priority,
-                            (Function0<Boolean>) condition,
-                            timeout
-                    )
-            );
-        } else {
-            throw new IllegalStateException("This listener is not registered: " + instance.getClass().getSimpleName());
-        }
+        Function1<T, Unit> kh = toKotlinFunction1(handler);
+        Function0<Boolean> kc = toKotlinFunction0(condition);
+
+        EventBus.registerEventHook(
+                eventType,
+                new EventHook<>(
+                        instance,
+                        kh,
+                        ignoresCondition,
+                        priority,
+                        kc,
+                        timeout
+                )
+        );
+
+        return Unit.INSTANCE;
     }
 
     /**
@@ -57,11 +61,12 @@ public class HandlerUtil {
      * @param instance the event handler instance
      * @param handler the handler to process the event
      */
-    public static <T extends Event> void handler(
-            IEventHandler instance,
+    public static <T extends Event> Unit handler(
+            @NotNull IEventHandler instance,
+            Class<T> eventType,
             Handler<T> handler
     ) {
-        handler(instance, () -> false, false, Priority.NORMAL, handler, null);
+        return handler(instance, eventType, () -> true, false, Priority.NORMAL, handler, null);
     }
 
     /**
@@ -77,8 +82,9 @@ public class HandlerUtil {
      * @param timeout the timeout for the event handler
      * @throws IllegalStateException if the listener is not registered
      */
-    public static <T extends ReturnableEvent<R>, R> void returnableHandler(
+    public static <T extends ReturnableEvent<R>, R> Unit returnableHandler(
             @NotNull IEventHandler instance,
+            Class<T> eventType,
             Supplier<Boolean> condition,
             boolean ignoresCondition,
             Priority priority,
@@ -87,21 +93,22 @@ public class HandlerUtil {
     ) {
         Class<?> clazz = instance.getClass();
 
-        if (IEventHandler.class.isAssignableFrom(clazz)) {
-            EventBus.registerReturnableEventHook(
-                    (Class<T>) (Class<?>) ReturnableEvent.class,
-                    new ReturnableEventHook<>(
-                            instance,
-                            (Function1<? super T, R>) handler,
-                            ignoresCondition,
-                            priority,
-                            (Function0<Boolean>) condition,
-                            timeout
-                    )
-            );
-        } else {
-            throw new IllegalStateException("This listener is not registered: " + instance.getClass().getSimpleName());
-        }
+        Function1<T, R> kh = toKotlinFunction1(handler);
+        Function0<Boolean> kc = toKotlinFunction0(condition);
+
+        EventBus.registerReturnableEventHook(
+                eventType,
+                new ReturnableEventHook<>(
+                        instance,
+                        kh,
+                        ignoresCondition,
+                        priority,
+                        kc,
+                        timeout
+                )
+        );
+
+        return Unit.INSTANCE;
     }
 
     /**
@@ -112,10 +119,33 @@ public class HandlerUtil {
      * @param instance the event handler instance
      * @param handler the handler to process the event
      */
-    public static <T extends ReturnableEvent<R>, R> void returnableHandler(
+    public static <T extends ReturnableEvent<R>, R> Unit returnableHandler(
             IEventHandler instance,
+            Class<T> eventType,
             ReturnableHandler<T, R> handler
     ) {
-        returnableHandler(instance, () -> false, false, Priority.NORMAL, handler, null);
+        return returnableHandler(instance, eventType, () -> true, false, Priority.NORMAL, handler, null);
     }
+
+    @NotNull
+    @Contract(pure = true)
+    static <T> Function0<T> toKotlinFunction0(@NotNull Supplier<T> supplier) {
+        return supplier::get;
+    }
+
+    @NotNull
+    @Contract(pure = true)
+    static <T extends Event> Function1<T, Unit> toKotlinFunction1(Handler<T> handler) {
+        return event -> {
+            handler.handle(event);
+            return Unit.INSTANCE;
+        };
+    }
+
+    @NotNull
+    @Contract(pure = true)
+    static <T extends ReturnableEvent<R>, R> Function1<T, R> toKotlinFunction1(@NotNull ReturnableHandler<T, R> handler) {
+        return handler::handle;
+    }
+
 }

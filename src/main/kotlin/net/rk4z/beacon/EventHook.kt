@@ -73,23 +73,17 @@ inline fun <reified T : Event> IEventHandler.handler(
     timeout: Long? = null,
     noinline handler: Handler<T>
 ) {
-    val clazz = this::class
-
-    if (clazz.isSubclassOf(IEventHandler::class)) {
-        EventBus.registerEventHook(
-            T::class.java,
-            EventHook(
-                this,
-                handler,
-                ignoresCondition,
-                priority,
-                condition,
-                timeout
-            )
+    EventBus.registerEventHook(
+        T::class.java,
+        EventHook(
+            this,
+            handler,
+            ignoresCondition,
+            priority,
+            condition,
+            timeout
         )
-    } else {
-        throw IllegalStateException("Classes containing event handlers need to be implemented with IEventHandler: ${clazz.simpleName}")
-    }
+    )
 }
 
 /**
