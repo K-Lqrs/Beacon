@@ -105,23 +105,17 @@ inline fun <reified T : ReturnableEvent<R>, R> IEventHandler.returnableHandler(
     timeout: Long? = null,
     noinline handler: ReturnableHandler<T, R>
 ) {
-    val clazz = this::class
-
-    if (clazz.isSubclassOf(IEventHandler::class)) {
-        EventBus.registerReturnableEventHook(
-            T::class.java,
-            ReturnableEventHook(
-                this,
-                handler,
-                ignoresCondition,
-                priority,
-                condition,
-                timeout
-            )
+    EventBus.registerReturnableEventHook(
+        T::class.java,
+        ReturnableEventHook(
+            this,
+            handler,
+            ignoresCondition,
+            priority,
+            condition,
+            timeout
         )
-    } else {
-        throw IllegalStateException("Classes containing event handlers need to be implemented with IEventHandler: ${clazz.simpleName}")
-    }
+    )
 }
 
 /**

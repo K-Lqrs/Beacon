@@ -9,7 +9,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Supplier;
 
-@SuppressWarnings({"unchecked", "unused", "RedundantCast"})
+@SuppressWarnings({"unused"})
 public class HandlerUtil {
 
     /**
