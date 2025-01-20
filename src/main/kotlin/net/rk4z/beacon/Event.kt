@@ -9,7 +9,7 @@ abstract class Event {
     val metadata: MutableMap<String, Any> = mutableMapOf()
 
     fun setMeta(key: String, value: Any) = metadata.put(key, value)
-    fun getzMeta(key: String): Any? = metadata[key]
+    fun getMeta(key: String): Any? = metadata[key]
     fun <T> getMetaOrDefault(key: String, default: T): T = metadata[key] as? T ?: default
 }
 
@@ -56,10 +56,12 @@ abstract class ReturnableEvent<T> : Event() {
  * Represents the priority of an event.
  * @param v The integer value of the priority.
  */
-enum class Priority(val v: Int) {
+enum class Priority(val level: Int) {
     LOWEST(0),
     LOW(1),
-    NORMAL(2),
-    HIGH(3),
-    HIGHEST(4)
+    MID_LOW(2),
+    NORMAL(3),
+    MID_HIGH(4),
+    HIGH(5),
+    HIGHEST(6)
 }
