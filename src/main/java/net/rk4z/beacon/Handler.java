@@ -1,4 +1,4 @@
-package net.rk4z.beacon.javaExtension;
+package net.rk4z.beacon;
 
 /**
  * Functional interface representing a handler for events of type T.

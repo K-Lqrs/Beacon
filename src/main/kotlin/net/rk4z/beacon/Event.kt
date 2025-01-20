@@ -5,7 +5,13 @@ package net.rk4z.beacon
 /**
  * Represents a generic event.
  */
-abstract class Event
+abstract class Event {
+    val metadata: MutableMap<String, Any> = mutableMapOf()
+
+    fun setMeta(key: String, value: Any) = metadata.put(key, value)
+    fun getzMeta(key: String): Any? = metadata[key]
+    fun <T> getMetaOrDefault(key: String, default: T): T = metadata[key] as? T ?: default
+}
 
 /**
  * Represents an event that can be cancelled.
@@ -16,12 +22,12 @@ abstract class CancellableEvent : Event() {
      */
     var isCancelled: Boolean = false
         private set
+
     /**
-     * Sets the cancellation status of the event.
-     * @param v Boolean value indicating the cancellation status.
+     * Cancels the event.
      */
-    fun setCancel(v: Boolean) {
-        isCancelled = v
+    fun cancel() {
+        isCancelled = true
     }
 }
 

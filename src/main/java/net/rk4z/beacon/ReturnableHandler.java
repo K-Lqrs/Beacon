@@ -1,6 +1,4 @@
-package net.rk4z.beacon.javaExtension;
-
-import net.rk4z.beacon.ReturnableEvent;
+package net.rk4z.beacon;
 
 /**
  * Functional interface representing a handler for returnable events of type T.

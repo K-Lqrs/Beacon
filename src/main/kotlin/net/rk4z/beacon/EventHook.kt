@@ -2,18 +2,6 @@
 
 package net.rk4z.beacon
 
-import kotlin.reflect.full.isSubclassOf
-
-/**
- * Type alias for a handler function that takes an event of type T and returns Unit.
- */
-typealias Handler<T> = (T) -> Unit
-
-/**
- * Type alias for a handler function that takes an event of type T and returns a result of type R.
- */
-typealias ReturnableHandler<T, R> = (T) -> R
-
 /**
  * Represents a hook for an event.
  *
@@ -71,13 +59,13 @@ inline fun <reified T : Event> IEventHandler.handler(
     ignoresCondition: Boolean = false,
     priority: Priority = Priority.NORMAL,
     timeout: Long? = null,
-    noinline handler: Handler<T>
+    noinline handler: (T) -> Unit
 ) {
     EventBus.registerEventHook(
         T::class.java,
         EventHook(
             this,
-            handler,
+            Handler(handler),
             ignoresCondition,
             priority,
             condition,
@@ -103,13 +91,13 @@ inline fun <reified T : ReturnableEvent<R>, R> IEventHandler.returnableHandler(
     ignoresCondition: Boolean = false,
     priority: Priority = Priority.NORMAL,
     timeout: Long? = null,
-    noinline handler: ReturnableHandler<T, R>
+    noinline returnableHandler: (T) -> R
 ) {
     EventBus.registerReturnableEventHook(
         T::class.java,
         ReturnableEventHook(
             this,
-            handler,
+            ReturnableHandler(returnableHandler),
             ignoresCondition,
             priority,
             condition,
@@ -118,33 +106,31 @@ inline fun <reified T : ReturnableEvent<R>, R> IEventHandler.returnableHandler(
     )
 }
 
-/**
- * Represents the type of event processing.
- */
-sealed class EventProcessingType {
+enum class EventProcessingType {
     /**
      * Synchronous event processing.
      */
-    data object HandlerAsync : EventProcessingType()
+    HANDLER_ASYNC,
 
     /**
      * Asynchronous event processing.
      */
-    data object Async : EventProcessingType()
+    ASYNC,
 
     /**
      * Synchronous event processing (alias for Sync).
      */
-    data object FullSync : EventProcessingType()
+    FULL_SYNC;
 
     companion object {
         fun fromString(type: String): EventProcessingType {
             return when (type.uppercase()) {
-                "ASYNC" -> Async
-                "HANDLERASYNC" -> HandlerAsync
-                "FULLSYNC" -> FullSync
+                "ASYNC" -> ASYNC
+                "HANDLERASYNC" -> HANDLER_ASYNC
+                "FULLSYNC" -> FULL_SYNC
                 else -> throw IllegalArgumentException("Unknown EventProcessingType: $type")
             }
         }
     }
 }
+

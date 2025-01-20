@@ -36,14 +36,13 @@ public class HandlerUtil {
     ) {
         Class<?> clazz = instance.getClass();
 
-        Function1<T, Unit> kh = toKotlinFunction1(handler);
         Function0<Boolean> kc = toKotlinFunction0(condition);
 
         EventBus.registerEventHook(
                 eventType,
                 new EventHook<>(
                         instance,
-                        kh,
+                        handler,
                         ignoresCondition,
                         priority,
                         kc,
@@ -93,14 +92,13 @@ public class HandlerUtil {
     ) {
         Class<?> clazz = instance.getClass();
 
-        Function1<T, R> kh = toKotlinFunction1(handler);
         Function0<Boolean> kc = toKotlinFunction0(condition);
 
         EventBus.registerReturnableEventHook(
                 eventType,
                 new ReturnableEventHook<>(
                         instance,
-                        kh,
+                        handler,
                         ignoresCondition,
                         priority,
                         kc,
