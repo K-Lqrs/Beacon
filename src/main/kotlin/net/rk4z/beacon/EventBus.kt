@@ -14,6 +14,10 @@ import java.util.concurrent.TimeoutException
 
 @Suppress("UNCHECKED_CAST", "unused")
 object EventBus {
+    var isDebug: Boolean = false
+        private set
+    var isInitialized: Boolean = false
+        private set
     internal val logger: Logger = LoggerFactory.getLogger(EventBus::class.java.simpleName)
     internal val registry: MutableMap<Class<out Event>, CopyOnWriteArrayList<EventHook<in Event>>> = mutableMapOf()
     internal val returnableRegistry: MutableMap<Class<out ReturnableEvent<*>>, MutableMap<String, ReturnableEventHook<out ReturnableEvent<*>, *>>> = mutableMapOf()
@@ -34,7 +38,7 @@ object EventBus {
 
         if (handlers.contains(hook).not()) {
             handlers.add(eventHook as EventHook<in Event>)
-            handlers.sortBy { it.priority.v }
+            handlers.sortBy { it.priority.level }
             logger.info("Registered event hook for ${eventClass.simpleName} with priority ${eventHook.priority}")
         }
     }
@@ -51,11 +55,11 @@ object EventBus {
     fun <T : ReturnableEvent<R>, R> registerReturnableEventHook(eventClass: Class<T>, eventHook: ReturnableEventHook<T, R>) {
         val handlers = returnableRegistry.getOrPut(eventClass) { mutableMapOf() }
 
-        val handlerKey = eventHook.handlerClass::class.simpleName + eventHook.priority.v
+        val handlerKey = eventHook.handlerClass::class.simpleName + eventHook.priority.level
 
         if (handlers.containsKey(handlerKey).not()) {
             handlers[handlerKey] = eventHook as ReturnableEventHook<out ReturnableEvent<*>, *>
-            handlers.values.sortedBy { it.priority.v }
+            handlers.values.sortedBy { it.priority.level }
             logger.info("Registered returnable event hook for ${eventClass.simpleName} with priority ${eventHook.priority}")
         }
     }
@@ -338,7 +342,11 @@ object EventBus {
      */
     @JvmStatic
     @JvmOverloads
-    fun initialize(vararg packageNames: String, threadPoolSize: Int = Runtime.getRuntime().availableProcessors()) {
+    fun initialize(vararg packageNames: String, threadPoolSize: Int = Runtime.getRuntime().availableProcessors(), isDebug: Boolean = false) {
+        if (isInitialized) {
+            throw IllegalStateException("EventBus is already initialized")
+        }
+
         if (::asyncExecutor.isInitialized && !asyncExecutor.isShutdown) {
             shutdown()
         }
@@ -347,11 +355,14 @@ object EventBus {
             shutdown()
         })
 
+        this.isDebug = isDebug
+
         for (packageName in packageNames) {
             initializeEventHandlers(packageName)
         }
 
         logger.info("EventBus initialized")
+        isInitialized = true
     }
 
 
@@ -367,7 +378,7 @@ object EventBus {
 
             for (subType in subTypes) {
                 try {
-                    subType.getDeclaredConstructor().newInstance()
+                    subType.getDeclaredConstructor().newInstance().initHandlers()
                 } catch (e: Exception) {
                     logger.error("Failed to initialize event handler: ${subType.name}", e)
                 }

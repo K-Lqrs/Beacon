@@ -5,11 +5,15 @@ import java.io.FileInputStream
 import java.util.*
 
 plugins {
-    kotlin("jvm") version "2.0.20"
-    kotlin("plugin.serialization") version "2.0.20"
+    // Kotlin
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+    id("io.ktor.plugin") version "3.0.3"
+    id("org.jetbrains.dokka") version "2.0.0"
+
+    // Publishing
     `maven-publish`
     id("cl.franciscosolis.sonatype-central-upload") version "1.0.3"
-    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 version = "1.4.8"
@@ -21,14 +25,30 @@ val localProperties = Properties().apply {
 
 repositories {
     mavenCentral()
+    maven("https://jitpack.io")
 }
 
 dependencies {
+    implementation("io.ktor:ktor-server-core:3.0.3")
+    implementation("io.ktor:ktor-server-netty:3.0.3")
+    implementation("io.ktor:ktor-server-websockets:3.0.3")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.3")
+
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.3")
+
+    implementation("io.ktor:ktor-client-core:3.0.3")
+    implementation("io.ktor:ktor-client-cio:3.0.3")
+    implementation("io.ktor:ktor-client-websockets:3.0.3")
+    implementation("io.ktor:ktor-client-serialization:3.0.3")
+    implementation("io.ktor:ktor-client-json:3.0.3")
+    implementation("io.ktor:ktor-client-content-negotiation:3.0.3")
+
 
     implementation("org.reflections:reflections:0.10.2")
-    implementation("org.jetbrains.kotlin:kotlin-reflect:2.0.0")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:2.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
 }
+
 
 java {
     withSourcesJar()
@@ -57,6 +77,10 @@ tasks.withType<JavaCompile> {
 tasks.named<Jar>("jar") {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     archiveClassifier.set("")
+}
+
+tasks.dokkaHtml.configure {
+    outputDirectory.set(layout.buildDirectory.dir("dokka"))
 }
 
 publishing {

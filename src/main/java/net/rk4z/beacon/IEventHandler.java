@@ -8,6 +8,28 @@ import java.util.List;
 public interface IEventHandler {
 
     /**
+     * Please write a handler initialization code.
+     *
+     * <p>For example:
+     * <pre>{@code
+     * @Override
+     * public void initHandlers() {
+     *   handler(this, MyEvent.class, event -> {
+     *     System.out.println("This is a handler for MyEvent: " + event.getMessage());
+     *     System.out.println("Thread: " + Thread.currentThread().getName());
+     *     return Unit.INSTANCE;
+     *   });
+     *   handler(this, MyReturnableEvent.class, event -> {
+     *     System.out.println("This is a handler for MyReturnableEvent: " + event.getMessage());
+     *     System.out.println("Thread: " + Thread.currentThread().getName());
+     *     return "Hello from returnable handler!";
+     *   });
+     * }
+     * }</pre>
+     */
+    void initHandlers();
+
+    /**
      * Handles events for this handler.
      *
      * @return true if the events are handled successfully, false otherwise
