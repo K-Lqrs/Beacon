@@ -4,5 +4,3 @@ build
 .kotlin
 .idea
 *.iml
-
-src/test/*

@@ -70,13 +70,12 @@ object EventBus {
      * @param T The type of the event.
      * @param event The event to process.
      * @param processingType The type of processing (Sync, Async, Synchronous).
-     * @param enableDebugLog Whether to enable debug logging.
+     * @param isDebug Whether to enable debug logging.
      * @return The processed event.
      */
     @JvmStatic
-    @JvmOverloads
-    fun <T : Event> processEvent(event: T, processingType: EventProcessingType, enableDebugLog: Boolean? = false): T {
-        if (enableDebugLog == true) {
+    fun <T : Event> processEvent(event: T, processingType: EventProcessingType): T {
+        if (isDebug == true) {
             logger.info("Calling event: ${event::class.simpleName}")
         } else {
             logger.debug("Calling event: ${event::class.simpleName}")
@@ -125,7 +124,7 @@ object EventBus {
                 }
             }
 
-            if (enableDebugLog == true) {
+            if (isDebug == true) {
                 logger.info("Handled event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
             } else {
                 logger.debug("Handled event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
@@ -140,13 +139,11 @@ object EventBus {
      *
      * @param T The type of the event.
      * @param event The event to post.
-     * @param enableDebugLog Whether to enable debug logging.
      * @return The event after processing.
      */
     @JvmStatic
-    @JvmOverloads
-    fun <T : Event> postHandlerSync(event: T, enableDebugLog: Boolean? = false): T {
-        return processEvent(event, EventProcessingType.HANDLER_ASYNC, enableDebugLog)
+    fun <T : Event> postHandlerASync(event: T): T {
+        return processEvent(event, EventProcessingType.HANDLER_ASYNC)
     }
 
     /**
@@ -154,13 +151,11 @@ object EventBus {
      *
      * @param T The type of the event.
      * @param event The event to post.
-     * @param enableDebugLog Whether to enable debug logging.
      * @return The event after processing.
      */
     @JvmStatic
-    @JvmOverloads
-    fun <T : Event> postAsync(event: T, enableDebugLog: Boolean? = false): T {
-        return processEvent(event, EventProcessingType.ASYNC, enableDebugLog)
+    fun <T : Event> postAsync(event: T): T {
+        return processEvent(event, EventProcessingType.ASYNC)
     }
 
     /**
@@ -168,13 +163,11 @@ object EventBus {
      *
      * @param T The type of the event.
      * @param event The event to post.
-     * @param enableDebugLog Whether to enable debug logging.
      * @return The event after processing.
      */
     @JvmStatic
-    @JvmOverloads
-    fun <T : Event> postFullSync(event: T, enableDebugLog: Boolean? = false): T {
-        return processEvent(event, EventProcessingType.FULL_SYNC, enableDebugLog)
+    fun <T : Event> postFullSync(event: T): T {
+        return processEvent(event, EventProcessingType.FULL_SYNC)
     }
 
     /**
@@ -185,14 +178,12 @@ object EventBus {
      * @param delay The delay after which the event should be handled.
      * @param timeUnit The time unit of the delay.
      * @param processingType The type of processing (Sync, Async, Synchronous).
-     * @param enableDebugLog Whether to enable debug logging.
      * @return The event after processing.
      */
     @JvmStatic
-    @JvmOverloads
-    fun <T : Event> postDelayed(event: T, delay: Long, timeUnit: TimeUnit, processingType: EventProcessingType, enableDebugLog: Boolean? = false): T {
+    fun <T : Event> postDelayed(event: T, delay: Long, timeUnit: TimeUnit, processingType: EventProcessingType): T {
         asyncExecutor.schedule({
-            processEvent(event, processingType, enableDebugLog)
+            processEvent(event, processingType)
         }, delay, timeUnit)
         return event
     }
@@ -205,14 +196,12 @@ object EventBus {
      * @param timeout The timeout within which the event should be handled.
      * @param timeUnit The time unit of the timeout.
      * @param processingType The type of processing (Sync, Async, Synchronous).
-     * @param enableDebugLog Whether to enable debug logging.
      * @return The event after processing.
      */
     @JvmStatic
-    @JvmOverloads
-    fun <T : Event> postWithTimeout(event: T, timeout: Long, timeUnit: TimeUnit, processingType: EventProcessingType, enableDebugLog: Boolean? = false): T {
+    fun <T : Event> postWithTimeout(event: T, timeout: Long, timeUnit: TimeUnit, processingType: EventProcessingType): T {
         val future = asyncExecutor.submit<T> {
-            processEvent(event, processingType, enableDebugLog)
+            processEvent(event, processingType)
             event
         }
 
@@ -241,19 +230,17 @@ object EventBus {
      * @param callback The callback to execute upon completion.
      * @param delay Optional delay before executing the callback.
      * @param processingType The type of processing (Sync, Async, Synchronous).
-     * @param enableDebugLog Whether to enable debug logging.
      * @return The event after processing.
      */
     @JvmStatic
-    @JvmOverloads
-    fun <T : Event> postWithCallback(event: T, callback: (T) -> Unit, delay: Long?, processingType: EventProcessingType, enableDebugLog: Boolean? = false): T {
+    fun <T : Event> postWithCallback(event: T, callback: (T) -> Unit, delay: Long?, processingType: EventProcessingType): T {
         if (delay != null) {
             asyncExecutor.schedule({
-                val processedEvent = processEvent(event, processingType, enableDebugLog)
+                val processedEvent = processEvent(event, processingType)
                 callback(processedEvent)
             }, delay, TimeUnit.MILLISECONDS)
         } else {
-            val processedEvent = processEvent(event, processingType, enableDebugLog)
+            val processedEvent = processEvent(event, processingType)
             callback(processedEvent)
         }
 
@@ -267,17 +254,14 @@ object EventBus {
      * @param R The type of the return value.
      * @param event The event to post.
      * @param processingType The type of processing (Sync, Async, Synchronous).
-     * @param enableDebugLog Whether to enable debug logging.
      * @return The result of the event after processing.
      */
     @JvmStatic
-    @JvmOverloads
     fun <T : ReturnableEvent<R>, R> postReturnable(
         event: T,
-        processingType: EventProcessingType,
-        enableDebugLog: Boolean? = false
+        processingType: EventProcessingType
     ): R? {
-        if (enableDebugLog == true) {
+        if (isDebug == true) {
             logger.info("Calling returnable event: ${event::class.simpleName}")
         } else {
             logger.debug("Calling returnable event: ${event::class.simpleName}")
@@ -325,7 +309,7 @@ object EventBus {
                 }
             }
 
-            if (enableDebugLog == true) {
+            if (isDebug == true) {
                 logger.info("Handled returnable event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")
             } else {
                 logger.debug("Handled returnable event: ${event::class.simpleName} with ${eventHook.handlerClass::class.simpleName}")

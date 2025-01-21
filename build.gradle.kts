@@ -16,7 +16,7 @@ plugins {
     id("cl.franciscosolis.sonatype-central-upload") version "1.0.3"
 }
 
-version = "1.4.8"
+version = "1.4.9"
 group = "net.rk4z"
 
 val localProperties = Properties().apply {
@@ -42,7 +42,6 @@ dependencies {
     implementation("io.ktor:ktor-client-serialization:3.0.3")
     implementation("io.ktor:ktor-client-json:3.0.3")
     implementation("io.ktor:ktor-client-content-negotiation:3.0.3")
-
 
     implementation("org.reflections:reflections:0.10.2")
     implementation("org.jetbrains.kotlin:kotlin-reflect:2.1.0")
@@ -97,7 +96,7 @@ publishing {
             pom {
                 name.set("Beacon")
                 description.set("A simple event API for Kotlin/Java")
-                url.set("https://github.com/KT-Ruxy/Beacon")
+                url.set("https://github.com/K-Lqrs/Beacon")
                 licenses {
                     license {
                         name.set("MIT")
@@ -106,15 +105,15 @@ publishing {
                 }
                 developers {
                     developer {
-                        id.set("ruxy")
-                        name.set("Ruxy")
+                        id.set("lars")
+                        name.set("Lars")
                         email.set("main@rk4z.net")
                     }
                 }
                 scm {
-                    connection.set("scm:git:git://github.com/KT-Ruxy/Beacon.git")
-                    developerConnection.set("scm:git:ssh://github.com/KT-Ruxy/Beacon.git")
-                    url.set("https://github.com/KT-Ruxy/Beacon")
+                    connection.set("scm:git:git://github.com/K-Lqrs/Beacon.git")
+                    developerConnection.set("scm:git:ssh://github.com/K-Lqrs/Beacon.git")
+                    url.set("https://github.com/K-Lqrs/Beacon")
                 }
                 dependencies
             }
