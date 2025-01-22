@@ -29,19 +29,21 @@ repositories {
 }
 
 dependencies {
-    implementation("io.ktor:ktor-server-core:3.0.3")
-    implementation("io.ktor:ktor-server-netty:3.0.3")
-    implementation("io.ktor:ktor-server-websockets:3.0.3")
-    implementation("io.ktor:ktor-server-content-negotiation:3.0.3")
+//    implementation("io.ktor:ktor-server-core:3.0.3")
+//    implementation("io.ktor:ktor-server-netty:3.0.3")
+//    implementation("io.ktor:ktor-server-websockets:3.0.3")
+//    implementation("io.ktor:ktor-server-content-negotiation:3.0.3")
+//
+//    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.3")
+//
+//    implementation("io.ktor:ktor-client-core:3.0.3")
+//    implementation("io.ktor:ktor-client-cio:3.0.3")
+//    implementation("io.ktor:ktor-client-websockets:3.0.3")
+//    implementation("io.ktor:ktor-client-serialization:3.0.3")
+//    implementation("io.ktor:ktor-client-json:3.0.3")
+//    implementation("io.ktor:ktor-client-content-negotiation:3.0.3")
 
-    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.3")
-
-    implementation("io.ktor:ktor-client-core:3.0.3")
-    implementation("io.ktor:ktor-client-cio:3.0.3")
-    implementation("io.ktor:ktor-client-websockets:3.0.3")
-    implementation("io.ktor:ktor-client-serialization:3.0.3")
-    implementation("io.ktor:ktor-client-json:3.0.3")
-    implementation("io.ktor:ktor-client-content-negotiation:3.0.3")
+    dokkaHtmlPlugin("org.jetbrains.dokka:kotlin-as-java-plugin:1.9.20")
 
     implementation("org.reflections:reflections:0.10.2")
     implementation("org.jetbrains.kotlin:kotlin-reflect:2.1.0")
