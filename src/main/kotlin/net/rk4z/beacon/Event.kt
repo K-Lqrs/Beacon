@@ -6,35 +6,57 @@ package net.rk4z.beacon
  * Represents a generic event.
  */
 abstract class Event {
+    /**
+     * The metadata of the event.
+     * This can be used to store additional information about the event.
+     */
     val metadata: MutableMap<String, Any?> = mutableMapOf()
 
+    /**
+     * Sets a metadata key-value pair.
+     * @param key The key of the metadata.
+     * @param value The value of the metadata.
+     */
     fun setMeta(key: String, value: Any) = metadata.put(key, value)
+
+    /**
+     * Gets a metadata value by key.
+     * @param key The key of the metadata.
+     * @return The value of the metadata.
+     */
     fun getMeta(key: String): Any? = metadata[key]
+
+    /**
+     * Gets a metadata value by key or a default value if the value is null.
+     * @param key The key of the metadata.
+     * @param default The default value to return if the value is null.
+     * @return The value of the metadata or the default value.
+     */
     fun <T> getMetaOrDefault(key: String, default: T): T = metadata[key] as? T ?: default
 }
 
 /**
- * Represents an event that can be cancelled.
+ * Represents an event that can be canceled.
  */
-abstract class CancellableEvent : Event() {
+abstract class CancelableEvent : Event() {
     /**
-     * Indicates whether the event is cancelled.
+     * Indicates whether the event is canceled.
      */
-    var isCancelled: Boolean = false
+    var isCanceled: Boolean = false
         private set
 
     /**
      * Cancels the event.
      */
     fun cancel() {
-        isCancelled = true
+        isCanceled = true
     }
 
     /**
      * Uncancels the event.
      */
-    fun uncancel() {
-        isCancelled = false
+    fun reset() {
+        isCanceled = false
     }
 }
 

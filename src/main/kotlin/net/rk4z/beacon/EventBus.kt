@@ -69,7 +69,7 @@ object EventBus {
      *
      * @param T The type of the event.
      * @param event The event to process.
-     * @param processingType The type of processing (Sync, Async, Synchronous).
+     * @param processingType The type of processing (Sync, Async, HandlerAsync).
      * @param isDebug Whether to enable debug logging.
      * @return The processed event.
      */
@@ -83,7 +83,7 @@ object EventBus {
 
         val target = registry[event::class.java] ?: return event
 
-        if (event is CancellableEvent && event.isCancelled) {
+        if (event is CancelableEvent && event.isCanceled) {
             logger.debug("Event ${event::class.simpleName} is cancelled")
             return event
         }
@@ -142,7 +142,7 @@ object EventBus {
      * @return The event after processing.
      */
     @JvmStatic
-    fun <T : Event> postHandlerASync(event: T): T {
+    fun <T : Event> postHandlerAsync(event: T): T {
         return processEvent(event, EventProcessingType.HANDLER_ASYNC)
     }
 
@@ -177,7 +177,7 @@ object EventBus {
      * @param event The event to post.
      * @param delay The delay after which the event should be handled.
      * @param timeUnit The time unit of the delay.
-     * @param processingType The type of processing (Sync, Async, Synchronous).
+     * @param processingType The type of processing (Sync, Async, HandlerAsync).
      * @return The event after processing.
      */
     @JvmStatic
@@ -195,7 +195,7 @@ object EventBus {
      * @param event The event to post.
      * @param timeout The timeout within which the event should be handled.
      * @param timeUnit The time unit of the timeout.
-     * @param processingType The type of processing (Sync, Async, Synchronous).
+     * @param processingType The type of processing (Sync, Async, HandlerAsync).
      * @return The event after processing.
      */
     @JvmStatic
@@ -209,7 +209,7 @@ object EventBus {
             future.get(timeout, timeUnit)
         } catch (e: TimeoutException) {
             logger.error("Timeout occurred while executing handler for event: ${event::class.simpleName}")
-            if (event is CancellableEvent) {
+            if (event is CancelableEvent) {
                 event.cancel()
             }
         } catch (e: InterruptedException) {
@@ -229,7 +229,7 @@ object EventBus {
      * @param event The event to post.
      * @param callback The callback to execute upon completion.
      * @param delay Optional delay before executing the callback.
-     * @param processingType The type of processing (Sync, Async, Synchronous).
+     * @param processingType The type of processing (Sync, Async, HandlerAsync).
      * @return The event after processing.
      */
     @JvmStatic
@@ -253,7 +253,7 @@ object EventBus {
      * @param T The type of the event.
      * @param R The type of the return value.
      * @param event The event to post.
-     * @param processingType The type of processing (Sync, Async, Synchronous).
+     * @param processingType The type of processing (Sync, Async, HandlerAsync).
      * @return The result of the event after processing.
      */
     @JvmStatic
@@ -318,7 +318,6 @@ object EventBus {
 
         return event.result
     }
-
 
     /**
      * Initializes the EventBus, setting up the asynchronous executor service.
