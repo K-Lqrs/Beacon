@@ -1,4 +1,4 @@
-local.properties
+local/*
 .gradle
 build
 .kotlin

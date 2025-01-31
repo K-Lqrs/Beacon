@@ -3,16 +3,17 @@
 Beacon is a simple, lightweight, and easy-to-use library for creating and calling the event in java and kotlin.
 
 ## Installation
-Latest version: ![Maven metadata URL](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Frepo1.maven.org%2Fmaven2%2Fnet%2Frk4z%2Fbeacon%2Fmaven-metadata.xml&style=plastic&logo=sonatype&label=Central&color=00FF87%20)
+Latest version: ![Dynamic XML Badge](https://img.shields.io/badge/dynamic/xml?url=https%3A%2F%2Frepo.ririfa.net%2Frepository%2Fmaven-public%2Fnet%2Fririfa%2Fbeacon%2Fmaven-metadata.xml&query=%2Fmetadata%2Fversioning%2Flatest&prefix=v&style=plastic&logo=sonatype&logoColor=56ba5e&label=Nexus&color=56ba5e)
 
 
 
-You need to add the MavenCentral repository to your build file:
+
+You need to add the repository to your build file:
 
 Gradle(Groovy)
 ```gradle
 repositories {
-    mavenCentral()
+    maven { url 'https://repo.ririfa.net/' }
 }
 
 dependencies {
@@ -22,8 +23,8 @@ dependencies {
 
 Gradle(Kotlin)
 ```kotlin
-repositories {
-    mavenCentral()
+repositories { 
+	maven("https://repo.ririfa.net/")
 }
 
 dependencies {
@@ -36,7 +37,7 @@ Maven
 <repositories>
     <repository>
         <id>central</id>
-        <url>https://repo.maven.apache.org/maven2</url>
+        <url>https://repo.ririfa.net/</url>
     </repository>
 </repositories>
 
